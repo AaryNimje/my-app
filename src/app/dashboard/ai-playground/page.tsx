@@ -1,404 +1,587 @@
 "use client";
-import React, { useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { WorkflowNode, WorkflowConnection, Workflow } from '@/types/workflow';
-import { NODE_DEFINITIONS } from '@/lib/nodes';
-import WorkflowCanvas from '@/components/workflow/WorkflowCanvas';
-import NodePalette from '@/components/workflow/NodePalette';
-import PropertyPanel from '@/components/workflow/PropertyPanel';
+import { useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
-interface PlaygroundState {
-  nodes: WorkflowNode[];
-  connections: WorkflowConnection[];
-  selectedNodeId: string | null;
-  workflow: Workflow | null;
+// Types
+interface Node {
+  id: string;
+  type: 'file' | 'agent' | 'llm' | 'memory' | 'tool' | 'condition' | 'output';
+  position: { x: number; y: number };
+  data: {
+    label: string;
+    config?: Record<string, any>;
+  };
 }
 
+interface Connection {
+  from: string;
+  to: string;
+  fromHandle?: string;
+  toHandle?: string;
+}
+
+interface PlaygroundState {
+  nodes: Node[];
+  connections: Connection[];
+  selectedNodeId: string | null;
+}
+
+// Node Component
+const NodeComponent = ({ 
+  node, 
+  onDrag, 
+  onSelect,
+  isSelected,
+  onDelete
+}: { 
+  node: Node; 
+  onDrag: (id: string, position: { x: number; y: number }) => void;
+  onSelect: (id: string) => void;
+  isSelected: boolean;
+  onDelete: (id: string) => void;
+}) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const getNodeIcon = (type: string) => {
+    switch (type) {
+      case 'file': return '📁';
+      case 'agent': return '🤖';
+      case 'llm': return '🧠';
+      case 'memory': return '💾';
+      case 'tool': return '🔧';
+      case 'condition': return '🔀';
+      case 'output': return '📤';
+      default: return '⚙️';
+    }
+  };
+
+  const getNodeColor = (type: string) => {
+    switch (type) {
+      case 'file': return '#3b82f6';
+      case 'agent': return '#8b5cf6';
+      case 'llm': return '#10b981';
+      case 'memory': return '#f59e0b';
+      case 'tool': return '#ef4444';
+      case 'condition': return '#f97316';
+      case 'output': return '#06b6d4';
+      default: return '#6b7280';
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - node.position.x,
+      y: e.clientY - node.position.y,
+    });
+    onSelect(node.id);
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      onDrag(node.id, {
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      });
+    }
+  }, [isDragging, dragStart, node.id, onDrag]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add global mouse listeners
+  useState(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  });
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: node.position.x,
+        top: node.position.y,
+        cursor: isDragging ? 'grabbing' : 'grab',
+        zIndex: isSelected ? 1000 : 1,
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      <div
+        style={{
+          backgroundColor: getNodeColor(node.type),
+          color: 'white',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          minWidth: '140px',
+          boxShadow: isSelected ? '0 0 0 2px #06b6d4' : '0 2px 8px rgba(0,0,0,0.1)',
+          border: isSelected ? '2px solid #06b6d4' : 'none',
+          userSelect: 'none',
+          position: 'relative'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '16px' }}>{getNodeIcon(node.type)}</span>
+            <span style={{ fontSize: '14px', fontWeight: '500' }}>{node.data.label}</span>
+          </div>
+          {isSelected && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(node.id);
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                borderRadius: '4px',
+                color: 'white',
+                cursor: 'pointer',
+                padding: '2px 6px',
+                fontSize: '12px'
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        
+        {/* Connection handles */}
+        <div style={{
+          position: 'absolute',
+          right: '-6px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: '12px',
+          height: '12px',
+          backgroundColor: '#fff',
+          border: '2px solid ' + getNodeColor(node.type),
+          borderRadius: '50%',
+          cursor: 'crosshair'
+        }} />
+        <div style={{
+          position: 'absolute',
+          left: '-6px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: '12px',
+          height: '12px',
+          backgroundColor: '#fff',
+          border: '2px solid ' + getNodeColor(node.type),
+          borderRadius: '50%',
+          cursor: 'crosshair'
+        }} />
+      </div>
+    </div>
+  );
+};
+
+// Node Palette Component
+const NodePalette = ({ onAddNode }: { onAddNode: (type: Node['type']) => void }) => {
+  const nodeTypes: Array<{ type: Node['type']; label: string; icon: string; description: string }> = [
+    { type: 'file', label: 'File Input', icon: '📁', description: 'Upload files (PDF, Excel, etc.)' },
+    { type: 'agent', label: 'AI Agent', icon: '🤖', description: 'Configurable AI assistant' },
+    { type: 'llm', label: 'LLM Model', icon: '🧠', description: 'Language model (GPT, Claude)' },
+    { type: 'memory', label: 'Memory', icon: '💾', description: 'Store conversation context' },
+    { type: 'tool', label: 'Tools', icon: '🔧', description: 'External tools from MCP' },
+    { type: 'condition', label: 'Condition', icon: '🔀', description: 'If/else logic branching' },
+    { type: 'output', label: 'Output', icon: '📤', description: 'Generate files or responses' },
+  ];
+
+  return (
+    <div style={{
+      width: '280px',
+      backgroundColor: '#f8f9fa',
+      borderRight: '1px solid #e9ecef',
+      padding: '20px',
+      height: '100%',
+      overflowY: 'auto'
+    }}>
+      <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: '600', color: '#1a1a1a' }}>
+        🎨 Node Palette
+      </h3>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {nodeTypes.map((nodeType) => (
+          <div
+            key={nodeType.type}
+            onClick={() => onAddNode(nodeType.type)}
+            style={{
+              padding: '16px',
+              border: '2px dashed #dee2e6',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              backgroundColor: 'white',
+              transition: 'all 0.2s ease',
+              userSelect: 'none'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#06b6d4';
+              e.currentTarget.style.backgroundColor = '#f0f9ff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#dee2e6';
+              e.currentTarget.style.backgroundColor = 'white';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '20px' }}>{nodeType.icon}</span>
+              <span style={{ fontSize: '14px', fontWeight: '500', color: '#1a1a1a' }}>
+                {nodeType.label}
+              </span>
+            </div>
+            <p style={{ 
+              fontSize: '12px', 
+              color: '#6b7280', 
+              margin: '0',
+              lineHeight: '1.4'
+            }}>
+              {nodeType.description}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Property Panel Component
+const PropertyPanel = ({ 
+  selectedNode, 
+  onUpdateNode,
+  onClose
+}: { 
+  selectedNode: Node | null;
+  onUpdateNode: (id: string, data: Partial<Node['data']>) => void;
+  onClose: () => void;
+}) => {
+  if (!selectedNode) {
+    return (
+      <div style={{
+        width: '320px',
+        backgroundColor: '#f8f9fa',
+        borderLeft: '1px solid #e9ecef',
+        padding: '20px',
+        height: '100%'
+      }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600', color: '#1a1a1a' }}>
+          ⚙️ Properties
+        </h3>
+        <div style={{
+          textAlign: 'center',
+          color: '#6b7280',
+          fontSize: '14px',
+          padding: '40px 0'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎯</div>
+          <p>Select a node to view and edit its properties</p>
+        </div>
+      </div>
+    );
+  }
+
+  const renderNodeSpecificConfig = () => {
+    switch (selectedNode.type) {
+      case 'llm':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '8px' }}>
+                Model
+              </label>
+              <select style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '14px'
+              }}>
+                <option>GPT-4</option>
+                <option>GPT-3.5 Turbo</option>
+                <option>Claude</option>
+                <option>Gemini</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '8px' }}>
+                Temperature: 0.7
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                defaultValue="0.7"
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '8px' }}>
+                Max Tokens
+              </label>
+              <input
+                type="number"
+                defaultValue="2048"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+          </div>
+        );
+      
+      case 'file':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '8px' }}>
+                File Type
+              </label>
+              <select style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '14px'
+              }}>
+                <option>PDF</option>
+                <option>Excel (.xlsx)</option>
+                <option>Word (.docx)</option>
+                <option>CSV</option>
+                <option>Text</option>
+                <option>Image</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '8px' }}>
+                Processing Mode
+              </label>
+              <select style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '14px'
+              }}>
+                <option>Extract Text</option>
+                <option>Parse Structure</option>
+                <option>OCR (Images)</option>
+                <option>Metadata Only</option>
+              </select>
+            </div>
+          </div>
+        );
+      
+      case 'agent':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '8px' }}>
+                Agent Type
+              </label>
+              <select style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '14px'
+              }}>
+                <option>Academic Assistant</option>
+                <option>Administrative Agent</option>
+                <option>Research Helper</option>
+                <option>Custom Agent</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '8px' }}>
+                System Prompt
+              </label>
+              <textarea
+                placeholder="You are a helpful academic assistant..."
+                rows={4}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+          </div>
+        );
+      
+      default:
+        return (
+          <div style={{ color: '#6b7280', fontSize: '14px' }}>
+            Configuration options for {selectedNode.type} nodes coming soon...
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div style={{
+      width: '320px',
+      backgroundColor: '#f8f9fa',
+      borderLeft: '1px solid #e9ecef',
+      padding: '20px',
+      height: '100%',
+      overflowY: 'auto'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <h3 style={{ margin: '0', fontSize: '18px', fontWeight: '600', color: '#1a1a1a' }}>
+          ⚙️ Properties
+        </h3>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '18px',
+            cursor: 'pointer',
+            padding: '4px',
+            color: '#6b7280'
+          }}
+        >
+          ✕
+        </button>
+      </div>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div>
+          <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '8px' }}>
+            Node Label
+          </label>
+          <input
+            type="text"
+            value={selectedNode.data.label}
+            onChange={(e) => onUpdateNode(selectedNode.id, { label: e.target.value })}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px'
+            }}
+          />
+        </div>
+        
+        <div>
+          <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '8px' }}>
+            Node Type
+          </label>
+          <div style={{
+            padding: '8px 12px',
+            backgroundColor: '#e5e7eb',
+            borderRadius: '6px',
+            fontSize: '14px',
+            color: '#4b5563'
+          }}>
+            {selectedNode.type}
+          </div>
+        </div>
+        
+        {renderNodeSpecificConfig()}
+      </div>
+    </div>
+  );
+};
+
+// Main AI Playground Component
 export default function AIPlaygroundPage() {
   const router = useRouter();
   const [currentPlayground, setCurrentPlayground] = useState<1 | 2 | 3>(1);
   const [playgroundStates, setPlaygroundStates] = useState<Record<number, PlaygroundState>>({
-    1: { nodes: [], connections: [], selectedNodeId: null, workflow: null },
-    2: { nodes: [], connections: [], selectedNodeId: null, workflow: null },
-    3: { nodes: [], connections: [], selectedNodeId: null, workflow: null }
+    1: { nodes: [], connections: [], selectedNodeId: null },
+    2: { nodes: [], connections: [], selectedNodeId: null },
+    3: { nodes: [], connections: [], selectedNodeId: null }
   });
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [showExecutionPanel, setShowExecutionPanel] = useState(false);
+
+  const currentState = playgroundStates[currentPlayground];
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Check authentication
-  React.useEffect(() => {
+  useState(() => {
     const user = localStorage.getItem('user');
     if (!user) {
       router.push('/login');
     }
-  }, [router]);
+  });
 
-  const currentState = playgroundStates[currentPlayground];
-
-  const updatePlaygroundState = useCallback((updates: Partial<PlaygroundState>) => {
+  const updateState = (updates: Partial<PlaygroundState>) => {
     setPlaygroundStates(prev => ({
       ...prev,
       [currentPlayground]: { ...prev[currentPlayground], ...updates }
     }));
-  }, [currentPlayground]);
+  };
 
-  // Node operations
-  const addNode = useCallback((nodeType: string, position?: { x: number; y: number }) => {
-    const definition = NODE_DEFINITIONS[nodeType];
-    if (!definition) return;
-
-    const defaultPosition = position || {
-      x: 100 + currentState.nodes.length * 250,
-      y: 100 + (currentState.nodes.length % 3) * 150
-    };
-
-    const newNode: WorkflowNode = {
-      id: `${nodeType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: nodeType as any,
-      position: defaultPosition,
+  const addNode = (type: Node['type']) => {
+    const newNode: Node = {
+      id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      position: { 
+        x: 100 + currentState.nodes.length * 30, 
+        y: 100 + currentState.nodes.length * 30 
+      },
       data: {
-        label: `${definition.name} ${currentState.nodes.length + 1}`,
-        config: definition.parameters.reduce((acc, param) => {
-          if (param.default !== undefined) {
-            acc[param.name] = param.default;
-          }
-          return acc;
-        }, {} as Record<string, any>),
-        inputs: definition.inputs,
-        outputs: definition.outputs,
-        parameters: definition.parameters,
-        status: 'idle'
-      }
+        label: `${type.charAt(0).toUpperCase() + type.slice(1)} ${currentState.nodes.length + 1}`,
+      },
     };
-
-    updatePlaygroundState({
+    
+    updateState({
       nodes: [...currentState.nodes, newNode]
     });
-  }, [currentState.nodes, updatePlaygroundState]);
+  };
 
-  const updateNode = useCallback((nodeId: string, updates: Partial<WorkflowNode>) => {
-    updatePlaygroundState({
-      nodes: currentState.nodes.map(node =>
-        node.id === nodeId ? { ...node, ...updates } : node
+  const updateNodePosition = (id: string, position: { x: number; y: number }) => {
+    updateState({
+      nodes: currentState.nodes.map(node => 
+        node.id === id ? { ...node, position } : node
       )
     });
-  }, [currentState.nodes, updatePlaygroundState]);
+  };
 
-  const deleteNode = useCallback((nodeId: string) => {
-    updatePlaygroundState({
-      nodes: currentState.nodes.filter(n => n.id !== nodeId),
-      connections: currentState.connections.filter(c => c.source !== nodeId && c.target !== nodeId),
-      selectedNodeId: currentState.selectedNodeId === nodeId ? null : currentState.selectedNodeId
+  const updateNodeData = (id: string, data: Partial<Node['data']>) => {
+    updateState({
+      nodes: currentState.nodes.map(node => 
+        node.id === id ? { ...node, data: { ...node.data, ...data } } : node
+      )
     });
-  }, [currentState, updatePlaygroundState]);
+  };
 
-  const selectNode = useCallback((nodeId: string | null) => {
-    updatePlaygroundState({ selectedNodeId: nodeId });
-  }, [updatePlaygroundState]);
-
-  // Connection operations
-  const updateConnections = useCallback((connections: WorkflowConnection[]) => {
-    updatePlaygroundState({ connections });
-  }, [updatePlaygroundState]);
-
-  // Workflow operations
-  const saveWorkflow = useCallback(async () => {
-    const workflow: Workflow = {
-      id: `workflow-${Date.now()}`,
-      name: `Playground ${currentPlayground} Workflow`,
-      description: getPlaygroundDescription(currentPlayground),
-      nodes: currentState.nodes,
-      connections: currentState.connections,
-      settings: {
-        timezone: 'UTC',
-        saveExecutions: true,
-        saveSuccessfulExecutions: true,
-        saveFailedExecutions: true
-      },
-      active: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      tags: [`playground-${currentPlayground}`]
-    };
-
-    // Save to localStorage for demo
-    const savedWorkflows = JSON.parse(localStorage.getItem('workflows') || '[]');
-    savedWorkflows.push(workflow);
-    localStorage.setItem('workflows', JSON.stringify(savedWorkflows));
-
-    updatePlaygroundState({ workflow });
-    alert('Workflow saved successfully!');
-  }, [currentPlayground, currentState, updatePlaygroundState]);
-
-  const executeWorkflow = useCallback(async () => {
-    if (currentState.nodes.length === 0) {
-      alert('Add some nodes to execute the workflow!');
-      return;
-    }
-
-    setIsExecuting(true);
-    setShowExecutionPanel(true);
-
-    // Simulate workflow execution
-    for (const node of currentState.nodes) {
-      updateNode(node.id, {
-        data: { ...node.data, status: 'running' }
-      });
-
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-
-      // Randomly succeed or fail for demo
-      const success = Math.random() > 0.2;
-      updateNode(node.id, {
-        data: {
-          ...node.data,
-          status: success ? 'success' : 'error',
-          lastRun: new Date().toISOString()
-        }
-      });
-    }
-
-    setIsExecuting(false);
-    alert('Workflow execution completed!');
-  }, [currentState.nodes, updateNode]);
-
-  const exportWorkflow = useCallback(() => {
-    const workflow = {
-      playground: currentPlayground,
-      nodes: currentState.nodes,
-      connections: currentState.connections,
-      exportedAt: new Date().toISOString()
-    };
-
-    const blob = new Blob([JSON.stringify(workflow, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `playground-${currentPlayground}-workflow.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [currentPlayground, currentState]);
-
-  const importWorkflow = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const imported = JSON.parse(e.target?.result as string);
-        updatePlaygroundState({
-          nodes: imported.nodes || [],
-          connections: imported.connections || [],
-          selectedNodeId: null
-        });
-        alert('Workflow imported successfully!');
-      } catch (error) {
-        alert('Failed to import workflow. Please check the file format.');
-      }
-    };
-    reader.readAsText(file);
-  }, [updatePlaygroundState]);
-
-  const clearWorkflow = useCallback(() => {
-    if (confirm('Are you sure you want to clear the entire workflow?')) {
-      updatePlaygroundState({
-        nodes: [],
-        connections: [],
-        selectedNodeId: null
-      });
-    }
-  }, [updatePlaygroundState]);
-
-  // Template workflows
-  const loadTemplate = useCallback((templateType: 'academic' | 'admin' | 'research') => {
-    let templateNodes: WorkflowNode[] = [];
-
-    switch (templateType) {
-      case 'academic':
-        templateNodes = [
-          {
-            id: 'webhook-1',
-            type: 'webhook',
-            position: { x: 100, y: 100 },
-            data: {
-              label: 'Student Query Webhook',
-              config: { httpMethod: 'POST', path: '/student-query' },
-              inputs: [],
-              outputs: [{ id: 'main', type: 'source', position: 'right', label: 'Query Data', dataType: 'object' }],
-              parameters: NODE_DEFINITIONS.webhook.parameters,
-              status: 'idle'
-            }
-          },
-          {
-            id: 'ai-agent-1',
-            type: 'ai-agent',
-            position: { x: 400, y: 100 },
-            data: {
-              label: 'Academic Assistant',
-              config: {
-                agentType: 'academic',
-                systemPrompt: 'You are a helpful academic assistant for students.',
-                maxIterations: 5
-              },
-              inputs: [{ id: 'main', type: 'target', position: 'left', label: 'Input', dataType: 'object' }],
-              outputs: [{ id: 'main', type: 'source', position: 'right', label: 'Response', dataType: 'object' }],
-              parameters: NODE_DEFINITIONS['ai-agent'].parameters,
-              status: 'idle'
-            }
-          },
-          {
-            id: 'google-sheets-1',
-            type: 'google-sheets',
-            position: { x: 700, y: 100 },
-            data: {
-              label: 'Student Database',
-              config: {
-                operation: 'read',
-                spreadsheetId: 'your-sheet-id',
-                range: 'Students!A:Z'
-              },
-              inputs: [{ id: 'main', type: 'target', position: 'left', label: 'Input', dataType: 'object' }],
-              outputs: [{ id: 'main', type: 'source', position: 'right', label: 'Student Data', dataType: 'array' }],
-              parameters: NODE_DEFINITIONS['google-sheets'].parameters,
-              status: 'idle'
-            }
-          }
-        ];
-        break;
-
-      case 'admin':
-        templateNodes = [
-          {
-            id: 'schedule-1',
-            type: 'schedule',
-            position: { x: 100, y: 100 },
-            data: {
-              label: 'Daily Report Trigger',
-              config: { triggerInterval: 'day' },
-              inputs: [],
-              outputs: [{ id: 'main', type: 'source', position: 'right', label: 'Trigger', dataType: 'object' }],
-              parameters: NODE_DEFINITIONS.schedule.parameters,
-              status: 'idle'
-            }
-          },
-          {
-            id: 'google-sheets-2',
-            type: 'google-sheets',
-            position: { x: 400, y: 100 },
-            data: {
-              label: 'HR Data',
-              config: { operation: 'read', range: 'HR!A:Z' },
-              inputs: [{ id: 'main', type: 'target', position: 'left', label: 'Input', dataType: 'object' }],
-              outputs: [{ id: 'main', type: 'source', position: 'right', label: 'HR Data', dataType: 'array' }],
-              parameters: NODE_DEFINITIONS['google-sheets'].parameters,
-              status: 'idle'
-            }
-          },
-          {
-            id: 'llm-node-1',
-            type: 'llm-node',
-            position: { x: 700, y: 100 },
-            data: {
-              label: 'Report Generator',
-              config: {
-                model: 'gpt-4',
-                systemPrompt: 'Generate a daily HR report.',
-                userPrompt: 'Create a summary of: {{data}}',
-                temperature: 0.3
-              },
-              inputs: [{ id: 'main', type: 'target', position: 'left', label: 'Input', dataType: 'object' }],
-              outputs: [{ id: 'main', type: 'source', position: 'right', label: 'Report', dataType: 'object' }],
-              parameters: NODE_DEFINITIONS['llm-node'].parameters,
-              status: 'idle'
-            }
-          },
-          {
-            id: 'email-send-1',
-            type: 'email-send',
-            position: { x: 1000, y: 100 },
-            data: {
-              label: 'Send Report',
-              config: {
-                toEmail: 'admin@university.edu',
-                subject: 'Daily HR Report',
-                body: '{{report}}'
-              },
-              inputs: [{ id: 'main', type: 'target', position: 'left', label: 'Input', dataType: 'object' }],
-              outputs: [{ id: 'main', type: 'source', position: 'right', label: 'Result', dataType: 'object' }],
-              parameters: NODE_DEFINITIONS['email-send'].parameters,
-              status: 'idle'
-            }
-          }
-        ];
-        break;
-
-      case 'research':
-        templateNodes = [
-          {
-            id: 'file-input-1',
-            type: 'file-input',
-            position: { x: 100, y: 100 },
-            data: {
-              label: 'Research Papers',
-              config: { fileType: 'pdf', processingMode: 'extract' },
-              inputs: [],
-              outputs: [{ id: 'main', type: 'source', position: 'right', label: 'Document Text', dataType: 'object' }],
-              parameters: NODE_DEFINITIONS['file-input'].parameters,
-              status: 'idle'
-            }
-          },
-          {
-            id: 'ai-agent-2',
-            type: 'ai-agent',
-            position: { x: 400, y: 100 },
-            data: {
-              label: 'Research Analyzer',
-              config: {
-                agentType: 'research',
-                systemPrompt: 'You are a research assistant that analyzes academic papers.',
-                maxIterations: 10
-              },
-              inputs: [{ id: 'main', type: 'target', position: 'left', label: 'Input', dataType: 'object' }],
-              outputs: [{ id: 'main', type: 'source', position: 'right', label: 'Analysis', dataType: 'object' }],
-              parameters: NODE_DEFINITIONS['ai-agent'].parameters,
-              status: 'idle'
-            }
-          },
-          {
-            id: 'file-output-1',
-            type: 'file-output',
-            position: { x: 700, y: 100 },
-            data: {
-              label: 'Research Summary',
-              config: {
-                fileFormat: 'pdf',
-                fileName: 'research-summary-{{date}}',
-                template: '{{analysis}}'
-              },
-              inputs: [{ id: 'main', type: 'target', position: 'left', label: 'Input', dataType: 'object' }],
-              outputs: [{ id: 'main', type: 'source', position: 'right', label: 'File Info', dataType: 'object' }],
-              parameters: NODE_DEFINITIONS['file-output'].parameters,
-              status: 'idle'
-            }
-          }
-        ];
-        break;
-    }
-
-    updatePlaygroundState({
-      nodes: templateNodes,
-      connections: [],
-      selectedNodeId: null
+  const deleteNode = (id: string) => {
+    updateState({
+      nodes: currentState.nodes.filter(node => node.id !== id),
+      selectedNodeId: currentState.selectedNodeId === id ? null : currentState.selectedNodeId
     });
-  }, [updatePlaygroundState]);
+  };
+
+  const selectNode = (id: string) => {
+    updateState({ selectedNodeId: id });
+  };
+
+  const clearSelection = () => {
+    updateState({ selectedNodeId: null });
+  };
+
+  const selectedNode = currentState.nodes.find(node => node.id === currentState.selectedNodeId) || null;
 
   const getPlaygroundTitle = (num: number) => {
-    switch (num) {
+    switch(num) {
       case 1: return "Simple Workflow Builder";
       case 2: return "Advanced Agent Configuration";
       case 3: return "Template-Based Workflows";
@@ -407,7 +590,7 @@ export default function AIPlaygroundPage() {
   };
 
   const getPlaygroundDescription = (num: number) => {
-    switch (num) {
+    switch(num) {
       case 1: return "Drag and drop components to build basic AI workflows";
       case 2: return "Configure complex multi-agent systems with advanced settings";
       case 3: return "Start with pre-built templates for common academic tasks";
@@ -415,118 +598,40 @@ export default function AIPlaygroundPage() {
     }
   };
 
-  const selectedNode = currentState.nodes.find(node => node.id === currentState.selectedNodeId) || null;
-
   return (
     <div style={{
       display: 'flex',
-      height: '100vh',
+      minHeight: '100vh',
       backgroundColor: '#ffffff',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      fontFamily: 'Arial, sans-serif'
     }}>
       {/* Node Palette */}
       <NodePalette onAddNode={addNode} />
-
-      {/* Main Content */}
+      
+      {/* Main Canvas Area */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         {/* Header */}
         <div style={{
           backgroundColor: '#ffffff',
-          borderBottom: '1px solid #e2e8f0',
-          padding: '12px 24px',
+          borderBottom: '1px solid #e9ecef',
+          padding: '16px 24px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          minHeight: '60px'
+          justifyContent: 'space-between'
         }}>
           <div>
-            <h1 style={{
-              margin: '0 0 4px 0',
-              fontSize: '20px',
-              fontWeight: '600',
-              color: '#1e293b',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
+            <h1 style={{ margin: '0 0 4px 0', fontSize: '24px', fontWeight: '600', color: '#1a1a1a' }}>
               🧠 AI Playground
-              <span style={{
-                fontSize: '12px',
-                backgroundColor: '#f1f5f9',
-                color: '#475569',
-                padding: '2px 8px',
-                borderRadius: '12px',
-                fontWeight: '500'
-              }}>
-                {currentState.nodes.length} nodes
-              </span>
             </h1>
-            <p style={{
-              margin: '0',
-              color: '#64748b',
-              fontSize: '14px'
-            }}>
+            <p style={{ margin: '0', color: '#6b7280', fontSize: '14px' }}>
               {getPlaygroundDescription(currentPlayground)}
             </p>
           </div>
-
-          {/* Toolbar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              onClick={executeWorkflow}
-              disabled={isExecuting || currentState.nodes.length === 0}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: isExecuting ? '#94a3b8' : '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: isExecuting ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              {isExecuting ? '⏳' : '▶️'} {isExecuting ? 'Running...' : 'Execute'}
-            </button>
-
-            <button
-              onClick={saveWorkflow}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              💾 Save
-            </button>
-
-            <button
-              onClick={exportWorkflow}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#f59e0b',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              📤 Export
-            </button>
-
-            <label style={{
+          
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button style={{
               padding: '8px 16px',
-              backgroundColor: '#8b5cf6',
+              backgroundColor: '#10b981',
               color: 'white',
               border: 'none',
               borderRadius: '6px',
@@ -534,231 +639,118 @@ export default function AIPlaygroundPage() {
               fontSize: '14px',
               fontWeight: '500'
             }}>
-              📥 Import
-              <input
-                type="file"
-                accept=".json"
-                onChange={importWorkflow}
-                style={{ display: 'none' }}
-              />
-            </label>
-
-            <button
-              onClick={clearWorkflow}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              🗑️ Clear
+              ▶️ Run Workflow
+            </button>
+            <button style={{
+              padding: '8px 16px',
+              backgroundColor: '#6b7280',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}>
+              💾 Save
+            </button>
+            <button style={{
+              padding: '8px 16px',
+              backgroundColor: '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}>
+              📥 Export
             </button>
           </div>
         </div>
 
         {/* Playground Selector */}
         <div style={{
-          backgroundColor: '#f8fafc',
-          borderBottom: '1px solid #e2e8f0',
-          padding: '8px 24px',
+          backgroundColor: '#f8f9fa',
+          borderBottom: '1px solid #e9ecef',
+          padding: '12px 24px',
           display: 'flex',
-          gap: '8px',
-          alignItems: 'center'
+          gap: '8px'
         }}>
-          <span style={{
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#374151',
-            marginRight: '12px'
-          }}>
-            Playground:
-          </span>
           {[1, 2, 3].map(num => (
             <button
               key={num}
               onClick={() => setCurrentPlayground(num as 1 | 2 | 3)}
               style={{
-                padding: '6px 12px',
-                backgroundColor: currentPlayground === num ? '#3b82f6' : 'white',
+                padding: '8px 16px',
+                backgroundColor: currentPlayground === num ? '#06b6d4' : 'white',
                 color: currentPlayground === num ? 'white' : '#374151',
                 border: '1px solid #d1d5db',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                fontSize: '13px',
+                fontSize: '14px',
                 fontWeight: '500'
               }}
             >
-              {num}. {getPlaygroundTitle(num)}
+              Playground {num}: {getPlaygroundTitle(num)}
             </button>
           ))}
-
-          {currentPlayground === 3 && (
-            <div style={{
-              marginLeft: '16px',
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center'
-            }}>
-              <span style={{
-                fontSize: '13px',
-                color: '#6b7280'
-              }}>
-                Templates:
-              </span>
-              <button
-                onClick={() => loadTemplate('academic')}
-                style={{
-                  padding: '4px 8px',
-                  backgroundColor: '#dbeafe',
-                  color: '#1e40af',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px'
-                }}
-              >
-                Academic
-              </button>
-              <button
-                onClick={() => loadTemplate('admin')}
-                style={{
-                  padding: '4px 8px',
-                  backgroundColor: '#dcfce7',
-                  color: '#166534',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px'
-                }}
-              >
-                Admin
-              </button>
-              <button
-                onClick={() => loadTemplate('research')}
-                style={{
-                  padding: '4px 8px',
-                  backgroundColor: '#fef3c7',
-                  color: '#92400e',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px'
-                }}
-              >
-                Research
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Canvas */}
-        <div style={{ flex: 1, position: 'relative' }}>
-          <WorkflowCanvas
-            nodes={currentState.nodes}
-            connections={currentState.connections}
-            selectedNodeId={currentState.selectedNodeId}
-            onNodesChange={(nodes) => updatePlaygroundState({ nodes })}
-            onConnectionsChange={updateConnections}
-            onNodeSelect={selectNode}
-            onNodeDoubleClick={(nodeId) => {
-              // Open node configuration modal
-              selectNode(nodeId);
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <div
+            ref={canvasRef}
+            onClick={clearSelection}
+            style={{
+              width: '100%',
+              height: '100%',
+              backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
+              backgroundSize: '20px 20px',
+              backgroundColor: '#fafafa',
+              position: 'relative',
+              overflow: 'hidden'
             }}
-          />
+          >
+            {currentState.nodes.map((node) => (
+              <NodeComponent
+                key={node.id}
+                node={node}
+                onDrag={updateNodePosition}
+                onSelect={selectNode}
+                onDelete={deleteNode}
+                isSelected={currentState.selectedNodeId === node.id}
+              />
+            ))}
+            
+            {currentState.nodes.length === 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                textAlign: 'center',
+                color: '#9ca3af',
+                fontSize: '16px'
+              }}>
+                <div style={{ fontSize: '64px', marginBottom: '16px' }}>🎨</div>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '600' }}>
+                  Start Building Your AI Workflow
+                </h3>
+                <p style={{ margin: '0', fontSize: '14px' }}>
+                  Drag components from the palette to create your workflow
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
+      
       {/* Property Panel */}
-      <PropertyPanel
+      <PropertyPanel 
         selectedNode={selectedNode}
-        onNodeUpdate={updateNode}
-        onClose={() => selectNode(null)}
+        onUpdateNode={updateNodeData}
+        onClose={clearSelection}
       />
-
-      {/* Execution Panel (if needed) */}
-      {showExecutionPanel && (
-        <div style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          width: '300px',
-          backgroundColor: 'white',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-          zIndex: 1000
-        }}>
-          <div style={{
-            padding: '16px',
-            borderBottom: '1px solid #e2e8f0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <h4 style={{
-              margin: '0',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#1e293b'
-            }}>
-              Execution Status
-            </h4>
-            <button
-              onClick={() => setShowExecutionPanel(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#6b7280',
-                fontSize: '16px'
-              }}
-            >
-              ✕
-            </button>
-          </div>
-          <div style={{
-            padding: '16px',
-            maxHeight: '200px',
-            overflowY: 'auto'
-          }}>
-            {currentState.nodes.map(node => (
-              <div
-                key={node.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '4px 0',
-                  fontSize: '12px'
-                }}
-              >
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor:
-                    node.data.status === 'success' ? '#10b981' :
-                    node.data.status === 'error' ? '#ef4444' :
-                    node.data.status === 'running' ? '#f59e0b' : '#6b7280'
-                }} />
-                <span style={{ color: '#374151' }}>{node.data.label}</span>
-                <span style={{
-                  color: '#6b7280',
-                  textTransform: 'capitalize',
-                  marginLeft: 'auto'
-                }}>
-                  {node.data.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

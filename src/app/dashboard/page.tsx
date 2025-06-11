@@ -21,18 +21,17 @@ export default function DashboardPage() {
   const renderContent = () => {
     switch(currentPage) {
       case 'ai-playground':
-        // Navigate to the full AI Playground page
-        window.location.href = '/dashboard/ai-playground';
         return (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '400px',
-            fontSize: '16px',
-            color: '#999'
-          }}>
-            Redirecting to AI Playground...
+          <div style={{ height: '100vh', width: '100%' }}>
+            <iframe 
+              src="/dashboard/ai-playground" 
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                border: 'none',
+                backgroundColor: 'white'
+              }}
+            />
           </div>
         );
       case 'llm-playground':
@@ -67,19 +66,19 @@ export default function DashboardPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
               <div style={{ backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px' }}>
                 <h3>Total Users</h3>
-                <p style={{ fontSize: '32px', color: '#0066cc', margin: '10px 0' }}>2,847</p>
+                <p style={{ fontSize: '32px', color: '#0066cc', margin: '10px 0' }}>1</p>
                 <p style={{ color: '#999' }}>Active users across all roles</p>
               </div>
               
               <div style={{ backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px' }}>
                 <h3>AI Workflows</h3>
-                <p style={{ fontSize: '32px', color: '#00cc66', margin: '10px 0' }}>156</p>
+                <p style={{ fontSize: '32px', color: '#00cc66', margin: '10px 0' }}>1</p>
                 <p style={{ color: '#999' }}>Created and running workflows</p>
               </div>
               
               <div style={{ backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px' }}>
                 <h3>Data Sources</h3>
-                <p style={{ fontSize: '32px', color: '#cc6600', margin: '10px 0' }}>12</p>
+                <p style={{ fontSize: '32px', color: '#cc6600', margin: '10px 0' }}>Coming soon</p>
                 <p style={{ color: '#999' }}>Connected Google Workspace APIs</p>
               </div>
             </div>
