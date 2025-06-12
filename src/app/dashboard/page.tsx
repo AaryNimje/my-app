@@ -1,201 +1,200 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+// src/app/dashboard/page.tsx
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+
+// Dashboard stats data
+const dashboardStats = [
+  {
+    title: 'Total Users',
+    value: '24',
+    change: '+12%',
+    icon: '👥',
+    color: 'bg-blue-500'
+  },
+  {
+    title: 'Active Workflows',
+    value: '8',
+    change: '+3',
+    icon: '⚙️',
+    color: 'bg-green-500'
+  },
+  {
+    title: 'AI Models',
+    value: '4',
+    change: 'Stable',
+    icon: '🧠',
+    color: 'bg-purple-500'
+  },
+  {
+    title: 'API Requests',
+    value: '1,204',
+    change: '+18%',
+    icon: '🔌',
+    color: 'bg-orange-500'
+  }
+];
+
+// Recent activity data
+const recentActivity = [
+  { id: 1, action: 'Created new workflow', user: 'Admin', time: '2 minutes ago' },
+  { id: 2, action: 'Updated LLM settings', user: 'Admin', time: '1 hour ago' },
+  { id: 3, action: 'API key renewed', user: 'System', time: '5 hours ago' },
+  { id: 4, action: 'New user registered', user: 'System', time: '1 day ago' }
+];
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Check if user is authenticated
     const user = localStorage.getItem('user');
     if (!user) {
       router.push('/login');
+      return;
     }
+
+    // Simulate loading dashboard data
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, [router]);
 
-  const logout = () => {
-    localStorage.removeItem('user');
-    router.push('/login');
-  };
-
-  const renderContent = () => {
-    switch(currentPage) {
-      case 'ai-playground':
-        return (
-          <div style={{ height: '100vh', width: '100%' }}>
-            <iframe 
-              src="/dashboard/ai-playground" 
-              style={{ 
-                width: '100%', 
-                height: '100%', 
-                border: 'none',
-                backgroundColor: 'white'
-              }}
-            />
-          </div>
-        );
-      case 'llm-playground':
-        return (
-          <div>
-            <h2 style={{ marginBottom: '20px' }}>LLM Playground</h2>
-            <div style={{
-              backgroundColor: '#2a2a2a',
-              padding: '20px',
-              borderRadius: '8px',
-              minHeight: '400px'
-            }}>
-              <p>Chat interface coming soon...</p>
-            </div>
-          </div>
-        );
-      case 'logs':
-        return (
-          <div>
-            <h2 style={{ marginBottom: '20px' }}>Logs & History</h2>
-            <div style={{ backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px' }}>
-              <p>• User logged in - 2 minutes ago</p>
-              <p>• Workflow created - 1 hour ago</p>
-              <p>• System backup completed - 3 hours ago</p>
-            </div>
-          </div>
-        );
+  // Quick action handler
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'create-workflow':
+        router.push('/dashboard/ai-playground');
+        break;
+      case 'new-chat':
+        router.push('/dashboard/llm-playground');
+        break;
+      case 'view-logs':
+        router.push('/dashboard/logs');
+        break;
       default:
-        return (
-          <div>
-            <h2 style={{ marginBottom: '20px' }}>Admin Dashboard</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
-              <div style={{ backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px' }}>
-                <h3>Total Users</h3>
-                <p style={{ fontSize: '32px', color: '#0066cc', margin: '10px 0' }}>1</p>
-                <p style={{ color: '#999' }}>Active users across all roles</p>
-              </div>
-              
-              <div style={{ backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px' }}>
-                <h3>AI Workflows</h3>
-                <p style={{ fontSize: '32px', color: '#00cc66', margin: '10px 0' }}>1</p>
-                <p style={{ color: '#999' }}>Created and running workflows</p>
-              </div>
-              
-              <div style={{ backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px' }}>
-                <h3>Data Sources</h3>
-                <p style={{ fontSize: '32px', color: '#cc6600', margin: '10px 0' }}>Coming soon</p>
-                <p style={{ color: '#999' }}>Connected Google Workspace APIs</p>
-              </div>
-            </div>
-          </div>
-        );
+        console.log(`Action: ${action}`);
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{
-      display: 'flex',
-      minHeight: '100vh',
-      backgroundColor: '#1a1a1a',
-      color: 'white',
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      {/* Sidebar */}
-      <div style={{
-        width: '250px',
-        backgroundColor: '#333',
-        padding: '20px'
-      }}>
-        <h2 style={{ marginBottom: '30px' }}>Academic AI</h2>
-        
-        <div style={{ marginBottom: '20px' }}>
-          <button
-            onClick={() => setCurrentPage('dashboard')}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: currentPage === 'dashboard' ? '#0066cc' : 'transparent',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              textAlign: 'left',
-              marginBottom: '10px'
-            }}
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600">Welcome back, Admin</p>
+        </div>
+        <div className="flex space-x-2">
+          <button 
+            onClick={() => handleQuickAction('create-workflow')}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
           >
-            📊 Dashboard
-          </button>
-          
-          <button
-            onClick={() => setCurrentPage('ai-playground')}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: currentPage === 'ai-playground' ? '#0066cc' : 'transparent',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              textAlign: 'left',
-              marginBottom: '10px'
-            }}
-          >
-            🧠 AI Playground
-          </button>
-          
-          <button
-            onClick={() => setCurrentPage('llm-playground')}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: currentPage === 'llm-playground' ? '#0066cc' : 'transparent',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              textAlign: 'left',
-              marginBottom: '10px'
-            }}
-          >
-            💬 LLM Playground
-          </button>
-          
-          <button
-            onClick={() => setCurrentPage('logs')}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: currentPage === 'logs' ? '#0066cc' : 'transparent',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              textAlign: 'left',
-              marginBottom: '10px'
-            }}
-          >
-            📜 Logs & History
+            Create Workflow
           </button>
         </div>
-        
-        <button
-          onClick={logout}
-          style={{
-            width: '100%',
-            padding: '10px',
-            backgroundColor: '#cc0000',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            marginTop: '50px'
-          }}
-        >
-          🚪 Logout
-        </button>
       </div>
-      
-      {/* Main Content */}
-      <div style={{
-        flex: 1,
-        padding: '30px'
-      }}>
-        {renderContent()}
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {dashboardStats.map((stat, index) => (
+          <Card key={index}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">{stat.title}</p>
+                  <p className="text-3xl font-bold mt-1">{stat.value}</p>
+                </div>
+                <div className={`w-12 h-12 rounded-full ${stat.color} flex items-center justify-center text-white text-xl`}>
+                  {stat.icon}
+                </div>
+              </div>
+              <div className="mt-4 text-sm text-gray-600">
+                <span>{stat.change} from last month</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Content Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Activity */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentActivity.map((activity) => (
+                <div key={activity.id} className="flex items-start">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 mr-3"></div>
+                  <div>
+                    <p className="font-medium">{activity.action}</p>
+                    <div className="flex mt-1 text-sm text-gray-500">
+                      <p className="mr-2">{activity.user}</p>
+                      <p>•</p>
+                      <p className="ml-2">{activity.time}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <button 
+              onClick={() => handleQuickAction('create-workflow')}
+              className="w-full text-left p-3 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center"
+            >
+              <span className="mr-3 text-lg">🧠</span>
+              <div>
+                <p className="font-medium">Create Workflow</p>
+                <p className="text-sm text-gray-500">Build AI automation pipeline</p>
+              </div>
+            </button>
+            
+            <button 
+              onClick={() => handleQuickAction('new-chat')}
+              className="w-full text-left p-3 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center"
+            >
+              <span className="mr-3 text-lg">💬</span>
+              <div>
+                <p className="font-medium">New LLM Chat</p>
+                <p className="text-sm text-gray-500">Interact with AI models</p>
+              </div>
+            </button>
+            
+            <button 
+              onClick={() => handleQuickAction('view-logs')}
+              className="w-full text-left p-3 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center"
+            >
+              <span className="mr-3 text-lg">📜</span>
+              <div>
+                <p className="font-medium">View Logs</p>
+                <p className="text-sm text-gray-500">Check system activities</p>
+              </div>
+            </button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
