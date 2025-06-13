@@ -33,21 +33,21 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Academic AI Platform</h1>
-          <p className="text-gray-600 mt-2">Sign in to access the dashboard</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Academic AI Platform</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Sign in to access the dashboard</p>
         </div>
         
-        <Card>
+        <Card className="dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <CardHeader>
-            <CardTitle>Sign In</CardTitle>
+            <CardTitle className="text-gray-900 dark:text-white">Sign In</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Email
                 </label>
                 <Input
@@ -57,11 +57,12 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
+                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600"
                 />
               </div>
               
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Password
                 </label>
                 <Input
@@ -71,17 +72,24 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600"
                 />
               </div>
               
               <Button 
                 type="submit" 
-                className="w-full"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={loading}
               >
                 {loading ? 'Signing in...' : 'Sign in'}
               </Button>
             </form>
+            
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Demo credentials: admin@example.com / password
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

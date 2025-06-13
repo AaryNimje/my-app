@@ -85,10 +85,10 @@ interface SystemMetrics {
 }
 
 const LOG_LEVELS = {
-  info: { icon: Info, color: 'text-blue-500', bg: 'bg-blue-50' },
-  warning: { icon: AlertTriangle, color: 'text-yellow-500', bg: 'bg-yellow-50' },
-  error: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
-  success: { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' }
+  info: { icon: Info, color: 'text-blue-400', bg: 'bg-blue-900' },
+  warning: { icon: AlertTriangle, color: 'text-yellow-400', bg: 'bg-yellow-900' },
+  error: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-900' },
+  success: { icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-900' }
 };
 
 const CATEGORIES = {
@@ -100,7 +100,7 @@ const CATEGORIES = {
   file: { icon: FileText, label: 'Files' }
 };
 
-// Mock data generators
+// Mock data generators (same as before)
 const generateMockLogs = (): LogEntry[] => {
   const logs: LogEntry[] = [];
   const now = new Date();
@@ -288,85 +288,85 @@ export default function LogsAndHistory() {
       <div className="space-y-6">
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Workflows</p>
-                <p className="text-2xl font-bold text-gray-900">{metrics.totalWorkflows}</p>
-                <p className="text-xs text-green-600 flex items-center mt-1">
+                <p className="text-sm font-medium text-gray-400">Total Workflows</p>
+                <p className="text-2xl font-bold text-white">{metrics.totalWorkflows}</p>
+                <p className="text-xs text-green-400 flex items-center mt-1">
                   <TrendingUp className="w-3 h-3 mr-1" />
                   +15% from last week
                 </p>
               </div>
-              <Workflow className="w-8 h-8 text-blue-500" />
+              <Workflow className="w-8 h-8 text-blue-400" />
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Active Chats</p>
-                <p className="text-2xl font-bold text-gray-900">{metrics.totalChats}</p>
-                <p className="text-xs text-green-600 flex items-center mt-1">
+                <p className="text-sm font-medium text-gray-400">Active Chats</p>
+                <p className="text-2xl font-bold text-white">{metrics.totalChats}</p>
+                <p className="text-xs text-green-400 flex items-center mt-1">
                   <TrendingUp className="w-3 h-3 mr-1" />
                   +8% from last week
                 </p>
               </div>
-              <MessageSquare className="w-8 h-8 text-green-500" />
+              <MessageSquare className="w-8 h-8 text-green-400" />
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Tokens</p>
-                <p className="text-2xl font-bold text-gray-900">{(metrics.totalTokens / 1000000).toFixed(1)}M</p>
-                <p className="text-xs text-red-600 flex items-center mt-1">
+                <p className="text-sm font-medium text-gray-400">Total Tokens</p>
+                <p className="text-2xl font-bold text-white">{(metrics.totalTokens / 1000000).toFixed(1)}M</p>
+                <p className="text-xs text-red-400 flex items-center mt-1">
                   <TrendingDown className="w-3 h-3 mr-1" />
                   -3% from last week
                 </p>
               </div>
-              <BarChart3 className="w-8 h-8 text-purple-500" />
+              <BarChart3 className="w-8 h-8 text-purple-400" />
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Cost</p>
-                <p className="text-2xl font-bold text-gray-900">${metrics.totalCost.toFixed(2)}</p>
-                <p className="text-xs text-yellow-600 flex items-center mt-1">
+                <p className="text-sm font-medium text-gray-400">Total Cost</p>
+                <p className="text-2xl font-bold text-white">${metrics.totalCost.toFixed(2)}</p>
+                <p className="text-xs text-yellow-400 flex items-center mt-1">
                   <TrendingUp className="w-3 h-3 mr-1" />
                   +12% from last week
                 </p>
               </div>
-              <Activity className="w-8 h-8 text-orange-500" />
+              <Activity className="w-8 h-8 text-orange-400" />
             </div>
           </div>
         </div>
 
         {/* Usage Trends */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">System Performance</h3>
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-4">System Performance</h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Average Response Time</span>
-                <span className="text-sm font-medium">{metrics.averageResponseTime}s</span>
+                <span className="text-sm text-gray-400">Average Response Time</span>
+                <span className="text-sm font-medium text-white">{metrics.averageResponseTime}s</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Error Rate</span>
-                <span className="text-sm font-medium">{metrics.errorRate.toFixed(1)}%</span>
+                <span className="text-sm text-gray-400">Error Rate</span>
+                <span className="text-sm font-medium text-white">{metrics.errorRate.toFixed(1)}%</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Active Users</span>
-                <span className="text-sm font-medium">{metrics.activeUsers}</span>
+                <span className="text-sm text-gray-400">Active Users</span>
+                <span className="text-sm font-medium text-white">{metrics.activeUsers}</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Models by Usage</h3>
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-4">Top Models by Usage</h3>
             <div className="space-y-3">
               {[
                 { model: 'GPT-4 Turbo', usage: 45, cost: '$124.50' },
@@ -376,10 +376,10 @@ export default function LogsAndHistory() {
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium">{item.model}</span>
-                      <span className="text-gray-600">{item.cost}</span>
+                      <span className="font-medium text-white">{item.model}</span>
+                      <span className="text-gray-400">{item.cost}</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                    <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
                       <div 
                         className="bg-blue-600 h-2 rounded-full" 
                         style={{ width: `${item.usage}%` }}
@@ -396,21 +396,21 @@ export default function LogsAndHistory() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-900 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-6">
+      <div className="bg-gray-800 border-b border-gray-700 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Logs & History</h1>
-            <p className="text-gray-600">Monitor system activity and chat history</p>
+            <h1 className="text-2xl font-bold text-white">Logs & History</h1>
+            <p className="text-gray-400">Monitor system activity and chat history</p>
           </div>
           
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md flex items-center gap-2">
+            <button className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-md flex items-center gap-2">
               <RefreshCw className="w-4 h-4" />
               Refresh
             </button>
-            <button className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md flex items-center gap-2">
+            <button className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-md flex items-center gap-2">
               <Download className="w-4 h-4" />
               Export
             </button>
@@ -432,8 +432,8 @@ export default function LogsAndHistory() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-2 rounded-md flex items-center gap-2 ${
                   activeTab === tab.id 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-blue-900 text-blue-100' 
+                    : 'text-gray-400 hover:bg-gray-700'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -456,23 +456,23 @@ export default function LogsAndHistory() {
             <div className="flex-1 flex flex-col">
               {/* Filters */}
               {(activeTab === 'logs') && (
-                <div className="bg-white border-b border-gray-200 p-4">
+                <div className="bg-gray-800 border-b border-gray-700 p-4">
                   <div className="flex items-center gap-4">
                     <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                      <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
                       <input
                         type="text"
                         placeholder="Search logs..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                       />
                     </div>
                     
                     <select
                       value={selectedLevel}
                       onChange={(e) => setSelectedLevel(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                     >
                       <option value="all">All Levels</option>
                       {Object.keys(LOG_LEVELS).map(level => (
@@ -485,7 +485,7 @@ export default function LogsAndHistory() {
                     <select
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                     >
                       <option value="all">All Categories</option>
                       {Object.entries(CATEGORIES).map(([key, category]) => (
@@ -498,7 +498,7 @@ export default function LogsAndHistory() {
                     <select
                       value={dateRange}
                       onChange={(e) => setDateRange(e.target.value as any)}
-                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                     >
                       <option value="today">Today</option>
                       <option value="7days">Last 7 Days</option>
@@ -510,9 +510,9 @@ export default function LogsAndHistory() {
               )}
 
               {/* List */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto bg-gray-900">
                 {activeTab === 'logs' && (
-                  <div className="divide-y divide-gray-200">
+                  <div className="divide-y divide-gray-800">
                     {filteredLogs.map(log => {
                       const LevelIcon = LOG_LEVELS[log.level].icon;
                       const CategoryIcon = CATEGORIES[log.category].icon;
@@ -520,7 +520,7 @@ export default function LogsAndHistory() {
                       return (
                         <div
                           key={log.id}
-                          className="p-4 hover:bg-gray-50 cursor-pointer"
+                          className="p-4 hover:bg-gray-800 cursor-pointer"
                           onClick={() => setSelectedLog(log)}
                         >
                           <div className="flex items-start gap-3">
@@ -530,14 +530,14 @@ export default function LogsAndHistory() {
                             
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <CategoryIcon className="w-4 h-4 text-gray-400" />
-                                <span className="font-medium text-gray-900">{log.action}</span>
+                                <CategoryIcon className="w-4 h-4 text-gray-500" />
+                                <span className="font-medium text-white">{log.action}</span>
                                 {log.user && (
-                                  <span className="text-sm text-gray-500">by {log.user}</span>
+                                  <span className="text-sm text-gray-400">by {log.user}</span>
                                 )}
                               </div>
                               
-                              <p className="text-sm text-gray-600 line-clamp-2">{log.description}</p>
+                              <p className="text-sm text-gray-300 line-clamp-2">{log.description}</p>
                               
                               <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                                 <span className="flex items-center gap-1">
@@ -563,27 +563,27 @@ export default function LogsAndHistory() {
                 )}
 
                 {activeTab === 'chats' && (
-                  <div className="divide-y divide-gray-200">
+                  <div className="divide-y divide-gray-800">
                     {chatHistory.map(chat => (
-                      <div key={chat.id} className="p-4 hover:bg-gray-50">
+                      <div key={chat.id} className="p-4 hover:bg-gray-800">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <MessageSquare className="w-4 h-4 text-blue-500" />
-                              <span className="font-medium text-gray-900">{chat.name}</span>
+                              <MessageSquare className="w-4 h-4 text-blue-400" />
+                              <span className="font-medium text-white">{chat.name}</span>
                               <span className={`px-2 py-1 text-xs rounded ${
-                                chat.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                chat.status === 'active' ? 'bg-green-900 text-green-400' : 'bg-gray-700 text-gray-400'
                               }`}>
                                 {chat.status}
                               </span>
                             </div>
                             
-                            <div className="text-sm text-gray-600 mb-2">
+                            <div className="text-sm text-gray-400 mb-2">
                               {chat.model} • {chat.messageCount} messages • {chat.tokens} tokens • ${chat.cost.toFixed(2)}
                             </div>
                             
                             {chat.workflow && (
-                              <div className="text-sm text-blue-600 mb-2">
+                              <div className="text-sm text-blue-400 mb-2">
                                 🔗 Workflow: {chat.workflow}
                               </div>
                             )}
@@ -595,13 +595,13 @@ export default function LogsAndHistory() {
                           </div>
                           
                           <div className="flex items-center gap-2">
-                            <button className="p-2 text-gray-400 hover:text-blue-600">
+                            <button className="p-2 text-gray-500 hover:text-blue-400">
                               <Eye className="w-4 h-4" />
                             </button>
-                            <button className="p-2 text-gray-400 hover:text-green-600">
+                            <button className="p-2 text-gray-500 hover:text-green-400">
                               <Download className="w-4 h-4" />
                             </button>
-                            <button className="p-2 text-gray-400 hover:text-red-600">
+                            <button className="p-2 text-gray-500 hover:text-red-400">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -612,29 +612,29 @@ export default function LogsAndHistory() {
                 )}
 
                 {activeTab === 'workflows' && (
-                  <div className="divide-y divide-gray-200">
+                  <div className="divide-y divide-gray-800">
                     {workflowExecutions.map(execution => (
                       <div
                         key={execution.id}
-                        className="p-4 hover:bg-gray-50 cursor-pointer"
+                        className="p-4 hover:bg-gray-800 cursor-pointer"
                         onClick={() => setSelectedExecution(execution)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <Workflow className="w-4 h-4 text-purple-500" />
-                              <span className="font-medium text-gray-900">{execution.workflowName}</span>
+                              <Workflow className="w-4 h-4 text-purple-400" />
+                              <span className="font-medium text-white">{execution.workflowName}</span>
                               <span className={`px-2 py-1 text-xs rounded ${
-                                execution.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                execution.status === 'failed' ? 'bg-red-100 text-red-800' :
-                                execution.status === 'running' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'
+                                execution.status === 'completed' ? 'bg-green-900 text-green-400' :
+                                execution.status === 'failed' ? 'bg-red-900 text-red-400' :
+                                execution.status === 'running' ? 'bg-blue-900 text-blue-400' :
+                                'bg-gray-700 text-gray-400'
                               }`}>
                                 {execution.status}
                               </span>
                             </div>
                             
-                            <div className="text-sm text-gray-600 mb-2">
+                            <div className="text-sm text-gray-400 mb-2">
                               {execution.user} • {execution.nodeExecutions.length} nodes • 
                               {execution.totalTokens} tokens • ${execution.totalCost.toFixed(2)}
                             </div>
@@ -647,7 +647,7 @@ export default function LogsAndHistory() {
                           
                           <div className="text-right">
                             {execution.status === 'running' && (
-                              <RefreshCw className="w-4 h-4 animate-spin text-blue-500" />
+                              <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
                             )}
                           </div>
                         </div>
@@ -660,14 +660,14 @@ export default function LogsAndHistory() {
 
             {/* Detail Panel */}
             {(selectedLog || selectedExecution) && (
-              <div className="w-96 bg-white border-l border-gray-200 p-6 overflow-y-auto">
+              <div className="w-96 bg-gray-800 border-l border-gray-700 p-6 overflow-y-auto">
                 {selectedLog && (
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">Log Details</h3>
+                      <h3 className="text-lg font-semibold text-white">Log Details</h3>
                       <button
                         onClick={() => setSelectedLog(null)}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-200"
                       >
                         ×
                       </button>
@@ -675,69 +675,69 @@ export default function LogsAndHistory() {
                     
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Level</label>
+                        <label className="block text-sm font-medium text-gray-400">Level</label>
                         <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-md ${LOG_LEVELS[selectedLog.level].bg}`}>
                           {React.createElement(LOG_LEVELS[selectedLog.level].icon, { 
                             className: `w-4 h-4 ${LOG_LEVELS[selectedLog.level].color}` 
                           })}
-                          <span className={LOG_LEVELS[selectedLog.level].color}>
+                          <span className={`${LOG_LEVELS[selectedLog.level].color}`}>
                             {selectedLog.level.toUpperCase()}
                           </span>
                         </div>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Category</label>
-                        <p className="text-sm text-gray-900">{CATEGORIES[selectedLog.category].label}</p>
+                        <label className="block text-sm font-medium text-gray-400">Category</label>
+                        <p className="text-sm text-white">{CATEGORIES[selectedLog.category].label}</p>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Action</label>
-                        <p className="text-sm text-gray-900">{selectedLog.action}</p>
+                        <label className="block text-sm font-medium text-gray-400">Action</label>
+                        <p className="text-sm text-white">{selectedLog.action}</p>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Description</label>
-                        <p className="text-sm text-gray-900">{selectedLog.description}</p>
+                        <label className="block text-sm font-medium text-gray-400">Description</label>
+                        <p className="text-sm text-white">{selectedLog.description}</p>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Timestamp</label>
-                        <p className="text-sm text-gray-900">{selectedLog.timestamp.toLocaleString()}</p>
+                        <label className="block text-sm font-medium text-gray-400">Timestamp</label>
+                        <p className="text-sm text-white">{selectedLog.timestamp.toLocaleString()}</p>
                       </div>
                       
                       {selectedLog.user && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">User</label>
-                          <p className="text-sm text-gray-900">{selectedLog.user}</p>
+                          <label className="block text-sm font-medium text-gray-400">User</label>
+                          <p className="text-sm text-white">{selectedLog.user}</p>
                         </div>
                       )}
                       
                       {selectedLog.duration && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Duration</label>
-                          <p className="text-sm text-gray-900">{selectedLog.duration}ms</p>
+                          <label className="block text-sm font-medium text-gray-400">Duration</label>
+                          <p className="text-sm text-white">{selectedLog.duration}ms</p>
                         </div>
                       )}
                       
                       {selectedLog.tokens && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Tokens</label>
-                          <p className="text-sm text-gray-900">{selectedLog.tokens}</p>
+                          <label className="block text-sm font-medium text-gray-400">Tokens</label>
+                          <p className="text-sm text-white">{selectedLog.tokens}</p>
                         </div>
                       )}
                       
                       {selectedLog.cost && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Cost</label>
-                          <p className="text-sm text-gray-900">${selectedLog.cost.toFixed(4)}</p>
+                          <label className="block text-sm font-medium text-gray-400">Cost</label>
+                          <p className="text-sm text-white">${selectedLog.cost.toFixed(4)}</p>
                         </div>
                       )}
                       
                       {selectedLog.metadata && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Metadata</label>
-                          <pre className="text-xs text-gray-900 bg-gray-100 p-2 rounded overflow-x-auto">
+                          <label className="block text-sm font-medium text-gray-400">Metadata</label>
+                          <pre className="text-xs text-white bg-gray-900 p-2 rounded overflow-x-auto">
                             {JSON.stringify(selectedLog.metadata, null, 2)}
                           </pre>
                         </div>
@@ -749,10 +749,10 @@ export default function LogsAndHistory() {
                 {selectedExecution && (
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">Execution Details</h3>
+                      <h3 className="text-lg font-semibold text-white">Execution Details</h3>
                       <button
                         onClick={() => setSelectedExecution(null)}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-200"
                       >
                         ×
                       </button>
@@ -760,65 +760,65 @@ export default function LogsAndHistory() {
                     
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Workflow</label>
-                        <p className="text-sm text-gray-900">{selectedExecution.workflowName}</p>
+                        <label className="block text-sm font-medium text-gray-400">Workflow</label>
+                        <p className="text-sm text-white">{selectedExecution.workflowName}</p>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Status</label>
+                        <label className="block text-sm font-medium text-gray-400">Status</label>
                         <span className={`inline-block px-2 py-1 text-xs rounded ${
-                          selectedExecution.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          selectedExecution.status === 'failed' ? 'bg-red-100 text-red-800' :
-                          selectedExecution.status === 'running' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
+                          selectedExecution.status === 'completed' ? 'bg-green-900 text-green-400' :
+                          selectedExecution.status === 'failed' ? 'bg-red-900 text-red-400' :
+                          selectedExecution.status === 'running' ? 'bg-blue-900 text-blue-400' :
+                          'bg-gray-700 text-gray-400'
                         }`}>
                           {selectedExecution.status}
                         </span>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">User</label>
-                        <p className="text-sm text-gray-900">{selectedExecution.user}</p>
+                        <label className="block text-sm font-medium text-gray-400">User</label>
+                        <p className="text-sm text-white">{selectedExecution.user}</p>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Duration</label>
-                        <p className="text-sm text-gray-900">
+                        <label className="block text-sm font-medium text-gray-400">Duration</label>
+                        <p className="text-sm text-white">
                           {selectedExecution.duration ? `${(selectedExecution.duration / 1000).toFixed(1)}s` : 'Running...'}
                         </p>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Total Tokens</label>
-                        <p className="text-sm text-gray-900">{selectedExecution.totalTokens}</p>
+                        <label className="block text-sm font-medium text-gray-400">Total Tokens</label>
+                        <p className="text-sm text-white">{selectedExecution.totalTokens}</p>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Total Cost</label>
-                        <p className="text-sm text-gray-900">${selectedExecution.totalCost.toFixed(4)}</p>
+                        <label className="block text-sm font-medium text-gray-400">Total Cost</label>
+                        <p className="text-sm text-white">${selectedExecution.totalCost.toFixed(4)}</p>
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Node Executions</label>
+                        <label className="block text-sm font-medium text-gray-400 mb-2">Node Executions</label>
                         <div className="space-y-2">
                           {selectedExecution.nodeExecutions.map((node, index) => (
-                            <div key={index} className="p-3 bg-gray-50 rounded">
+                            <div key={index} className="p-3 bg-gray-900 rounded">
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-sm font-medium">{node.nodeName}</span>
+                                <span className="text-sm font-medium text-white">{node.nodeName}</span>
                                 <span className={`text-xs px-2 py-1 rounded ${
-                                  node.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                  node.status === 'failed' ? 'bg-red-100 text-red-800' :
-                                  'bg-gray-100 text-gray-800'
+                                  node.status === 'completed' ? 'bg-green-900 text-green-400' :
+                                  node.status === 'failed' ? 'bg-red-900 text-red-400' :
+                                  'bg-gray-700 text-gray-400'
                                 }`}>
                                   {node.status}
                                 </span>
                               </div>
-                              <div className="text-xs text-gray-600">
+                              <div className="text-xs text-gray-400">
                                 Duration: {(node.duration / 1000).toFixed(1)}s
                                 {node.tokens && ` • Tokens: ${node.tokens}`}
                               </div>
                               {node.error && (
-                                <div className="text-xs text-red-600 mt-1">{node.error}</div>
+                                <div className="text-xs text-red-400 mt-1">{node.error}</div>
                               )}
                             </div>
                           ))}

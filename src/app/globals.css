@@ -91,3 +91,123 @@ body {
 html {
   font-feature-settings: "rlig" 1, "calt" 1;
 }
+
+/* src/app/globals.css - Add these at the end of the file */
+
+/* Dark Theme Enhancements - Fix visibility issues */
+
+/* Fix white text on white background in dark mode */
+.dark input,
+.dark select,
+.dark textarea {
+  color: hsl(var(--foreground)) !important;
+  background-color: hsl(var(--muted)) !important;
+}
+
+/* Fix hover issues where content disappears */
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-white:hover {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+.dark .hover\:bg-gray-50:hover *,
+.dark .hover\:bg-white:hover * {
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+/* Ensure consistent text contrast in cards */
+.dark .bg-white {
+  background-color: hsl(var(--card)) !important;
+}
+
+.dark .text-gray-700,
+.dark .text-gray-800,
+.dark .text-gray-900 {
+  color: hsl(var(--card-foreground)) !important;
+}
+
+.dark .text-gray-500,
+.dark .text-gray-600 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Dashboard cards hover state fix */
+.dark .bg-\[\#2a2a2a\]:hover {
+  background-color: hsl(var(--accent)) !important;
+}
+
+.dark .bg-\[\#2a2a2a\]:hover * {
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+/* Workflow connection styles */
+.workflow-connection {
+  stroke: hsl(var(--primary));
+  stroke-width: 2px;
+}
+
+.dark .workflow-connection {
+  stroke: hsl(var(--primary));
+}
+
+.workflow-connection-point {
+  fill: hsl(var(--primary));
+}
+
+.dark .workflow-connection-point {
+  fill: hsl(var(--primary));
+}
+
+/* AI Playground specific styles */
+.node {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--card-foreground));
+}
+
+.dark .node {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--card-foreground));
+}
+
+.node-handle {
+  background-color: hsl(var(--muted));
+}
+
+.dark .node-handle {
+  background-color: hsl(var(--primary));
+}
+
+/* LLM Playground text visibility fixes */
+.dark .LLMPlayground-message {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+
+.dark .LLMPlayground-userMessage {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Improve visibility of settings panels */
+.dark .LLMPlayground-settings {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .LLMPlayground-settings label {
+  color: hsl(var(--card-foreground));
+}
+
+/* Consistent logout button styling */
+.logout-button {
+  color: hsl(var(--destructive-foreground));
+  background-color: hsl(var(--destructive));
+}
+
+.dark .logout-button {
+  color: hsl(var(--destructive-foreground));
+  background-color: hsl(var(--destructive));
+}

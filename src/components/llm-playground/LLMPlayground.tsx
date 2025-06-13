@@ -1,4 +1,8 @@
 // src/components/llm-playground/LLMPlayground.tsx
+// Updated with better dark mode text visibility
+
+'use client';
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -43,7 +47,7 @@ export function LLMPlayground() {
   // Show settings panel
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
-  // Chat names for multi-chat (simplified for now)
+  // Chat names for multi-chat
   const [chatName, setChatName] = useState<string>('New Chat');
   
   // Handle sending a message
@@ -77,11 +81,11 @@ export function LLMPlayground() {
   };
 
   return (
-    <div className="flex h-full bg-gray-50">
+    <div className="flex h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50">
       {/* Chat List Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">LLM Playground</h2>
+      <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold">LLM Playground</h2>
         </div>
         
         {/* New Chat Button */}
@@ -104,25 +108,25 @@ export function LLMPlayground() {
         
         {/* Chat History */}
         <div className="flex-1 overflow-y-auto p-2">
-          <Card className="mb-2 cursor-pointer hover:bg-gray-50">
+          <Card className="mb-2 cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700">
             <CardContent className="p-3">
               <div className="font-medium text-sm truncate">{chatName}</div>
-              <div className="text-xs text-gray-500">Just now</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Just now</div>
             </CardContent>
           </Card>
           
           {/* Example previous chats */}
-          <Card className="mb-2 cursor-pointer hover:bg-gray-50 opacity-50">
+          <Card className="mb-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 opacity-50">
             <CardContent className="p-3">
               <div className="font-medium text-sm truncate">Student Data Analysis</div>
-              <div className="text-xs text-gray-500">2 days ago</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">2 days ago</div>
             </CardContent>
           </Card>
           
-          <Card className="mb-2 cursor-pointer hover:bg-gray-50 opacity-50">
+          <Card className="mb-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 opacity-50">
             <CardContent className="p-3">
               <div className="font-medium text-sm truncate">Course Planning</div>
-              <div className="text-xs text-gray-500">1 week ago</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">1 week ago</div>
             </CardContent>
           </Card>
         </div>
@@ -131,13 +135,13 @@ export function LLMPlayground() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Chat Header */}
-        <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center">
           <div>
             <input
               type="text"
               value={chatName}
               onChange={(e) => setChatName(e.target.value)}
-              className="text-xl font-bold bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 px-1 py-0.5 rounded"
+              className="text-xl font-bold bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 px-1 py-0.5 rounded text-gray-900 dark:text-gray-50"
               placeholder="Chat Name"
             />
           </div>
@@ -146,6 +150,7 @@ export function LLMPlayground() {
               variant="outline" 
               size="sm"
               onClick={() => setShowSettings(!showSettings)}
+              className="text-gray-700 dark:text-gray-300"
             >
               ⚙️ Settings
             </Button>
@@ -154,15 +159,15 @@ export function LLMPlayground() {
         
         {/* Settings Panel (conditionally rendered) */}
         {showSettings && (
-          <div className="bg-white border-b border-gray-200 p-4">
+          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 LLMPlayground-settings">
             <h3 className="font-medium mb-2">Model Settings</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-1">
                   Model
                 </label>
                 <select
-                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50"
                   value={settings.model}
                   onChange={(e) => setSettings({...settings, model: e.target.value})}
                 >
@@ -174,7 +179,7 @@ export function LLMPlayground() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-1">
                   Temperature: {settings.temperature}
                 </label>
                 <input
@@ -184,29 +189,29 @@ export function LLMPlayground() {
                   step="0.1"
                   value={settings.temperature}
                   onChange={(e) => setSettings({...settings, temperature: parseFloat(e.target.value)})}
-                  className="w-full"
+                  className="w-full accent-blue-500"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-1">
                   Max Tokens
                 </label>
                 <input
                   type="number"
                   value={settings.maxTokens}
                   onChange={(e) => setSettings({...settings, maxTokens: parseInt(e.target.value) || 0})}
-                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50"
                 />
               </div>
               
               <div className="flex items-center">
-                <label className="flex items-center text-sm font-medium text-gray-700">
+                <label className="flex items-center text-sm font-medium">
                   <input
                     type="checkbox"
                     checked={settings.streamOutput}
                     onChange={(e) => setSettings({...settings, streamOutput: e.target.checked})}
-                    className="mr-2"
+                    className="mr-2 accent-blue-500 dark:bg-gray-700"
                   />
                   Stream Output
                 </label>
@@ -216,7 +221,7 @@ export function LLMPlayground() {
         )}
         
         {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
           {messages.filter(m => m.role !== 'system').map(message => (
             <div
               key={message.id}
@@ -227,14 +232,14 @@ export function LLMPlayground() {
               <div
                 className={`p-3 rounded-lg ${
                   message.role === 'user'
-                    ? 'bg-blue-500 text-white ml-auto'
-                    : 'bg-white border border-gray-200'
+                    ? 'bg-blue-500 text-white ml-auto LLMPlayground-userMessage'
+                    : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 LLMPlayground-message'
                 }`}
               >
                 {message.content}
               </div>
               <div
-                className={`text-xs text-gray-500 mt-1 ${
+                className={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${
                   message.role === 'user' ? 'text-right' : ''
                 }`}
               >
@@ -245,11 +250,11 @@ export function LLMPlayground() {
           
           {loading && (
             <div className="mb-4 mr-12">
-              <div className="p-3 rounded-lg bg-white border border-gray-200">
+              <div className="p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                 <div className="flex space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-gray-300 animate-bounce"></div>
-                  <div className="w-2 h-2 rounded-full bg-gray-300 animate-bounce delay-100"></div>
-                  <div className="w-2 h-2 rounded-full bg-gray-300 animate-bounce delay-200"></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce"></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce delay-100"></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce delay-200"></div>
                 </div>
               </div>
             </div>
@@ -257,13 +262,13 @@ export function LLMPlayground() {
         </div>
         
         {/* Input Area */}
-        <div className="bg-white border-t border-gray-200 p-4">
+        <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
           <div className="flex">
-            <button className="p-2 text-gray-500 hover:text-gray-700">
+            <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
               📎
             </button>
             <textarea
-              className="flex-1 p-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-l-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 resize-none"
               placeholder="Type your message..."
               rows={2}
               value={input}
@@ -275,75 +280,12 @@ export function LLMPlayground() {
                 }
               }}
             />
-            <Button
-              className="rounded-l-none"
+            <button
+              className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-r-md"
               onClick={sendMessage}
-              disabled={loading || !input.trim()}
             >
-              Send
-            </Button>
-          </div>
-          
-          <div className="mt-2 flex justify-between text-xs text-gray-500">
-            <div>Shift + Enter for new line</div>
-            <div>Using {settings.model}</div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Optional: File/Tools Sidebar */}
-      <div className="w-64 bg-white border-l border-gray-200 hidden md:block">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Files & Tools</h2>
-        </div>
-        
-        {/* Files Section */}
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="font-medium text-sm mb-2">Attached Files</h3>
-          
-          <div className="space-y-2">
-            <div className="p-2 border border-gray-200 rounded-md flex items-center">
-              <span className="mr-2">📄</span>
-              <div className="text-xs">
-                <div className="font-medium">example.pdf</div>
-                <div className="text-gray-500">PDF • 2.4 MB</div>
-              </div>
-            </div>
-            
-            <button className="w-full p-2 text-sm text-blue-600 border border-dashed border-gray-300 rounded-md hover:bg-gray-50">
-              + Add File
+              📤
             </button>
-          </div>
-        </div>
-        
-        {/* Tools Section */}
-        <div className="p-4">
-          <h3 className="font-medium text-sm mb-2">Available Tools</h3>
-          
-          <div className="space-y-2">
-            <div className="p-2 border border-gray-200 rounded-md flex items-center">
-              <span className="mr-2">📊</span>
-              <div className="text-xs">
-                <div className="font-medium">Google Sheets</div>
-                <div className="text-gray-500">Data access & analysis</div>
-              </div>
-            </div>
-            
-            <div className="p-2 border border-gray-200 rounded-md flex items-center">
-              <span className="mr-2">📅</span>
-              <div className="text-xs">
-                <div className="font-medium">Google Calendar</div>
-                <div className="text-gray-500">Schedule management</div>
-              </div>
-            </div>
-            
-            <div className="p-2 border border-gray-200 rounded-md flex items-center">
-              <span className="mr-2">📁</span>
-              <div className="text-xs">
-                <div className="font-medium">Google Drive</div>
-                <div className="text-gray-500">File storage & access</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
