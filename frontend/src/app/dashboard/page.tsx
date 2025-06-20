@@ -1,9 +1,10 @@
-// src/app/dashboard/page.tsx
+// frontend/src/app/dashboard/page.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
+import { dashboardApi } from '@/lib/api';
 
 // Dashboard stats data
 const dashboardStats = [
@@ -48,24 +49,33 @@ const recentActivity = [
 export default function DashboardPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [realStats, setRealStats] = useState<any>(null);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const user = localStorage.getItem('user');
-    if (!user) {
+    // Check if user is authenticated using token
+    const token = localStorage.getItem('token');
+    if (!token) {
       router.push('/login');
       return;
     }
 
-    // Simulate loading dashboard data
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    // Load dashboard data
+    loadDashboardData();
   }, [router]);
 
-  // Quick action handler
+  const loadDashboardData = async () => {
+    try {
+      const response = await dashboardApi.stats();
+      if (response?.success && response?.stats) {
+        setRealStats(response.stats);
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'create-workflow':
@@ -90,12 +100,44 @@ export default function DashboardPage() {
     );
   }
 
+  // Use real stats if available, otherwise use demo data
+  const displayStats = realStats ? [
+    {
+      title: 'AI Agents',
+      value: realStats.agents.toString(),
+      change: 'Active',
+      icon: '🤖',
+      color: 'bg-blue-500'
+    },
+    {
+      title: 'Workflows',
+      value: realStats.workflows.toString(),
+      change: 'Created',
+      icon: '⚙️',
+      color: 'bg-green-500'
+    },
+    {
+      title: 'Active Chats',
+      value: realStats.activeChats.toString(),
+      change: 'Running',
+      icon: '💬',
+      color: 'bg-purple-500'
+    },
+    {
+      title: 'Integrations',
+      value: realStats.integrations.toString(),
+      change: 'Connected',
+      icon: '🔌',
+      color: 'bg-orange-500'
+    }
+  ] : dashboardStats;
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600">Welcome back, Admin</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">Welcome back, Admin</p>
         </div>
         <div className="flex space-x-2">
           <button 
@@ -109,90 +151,80 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {dashboardStats.map((stat, index) => (
-          <Card key={index}>
+        {displayStats.map((stat, index) => (
+          <Card key={index} className="bg-white dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-                  <p className="text-3xl font-bold mt-1">{stat.value}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{stat.title}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-500 mt-1">{stat.change}</p>
                 </div>
-                <div className={`w-12 h-12 rounded-full ${stat.color} flex items-center justify-center text-white text-xl`}>
+                <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center text-white text-2xl`}>
                   {stat.icon}
                 </div>
-              </div>
-              <div className="mt-4 text-sm text-gray-600">
-                <span>{stat.change} from last month</span>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Content Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activity */}
-        <Card className="lg:col-span-2">
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <Card className="bg-white dark:bg-gray-800">
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle className="text-gray-900 dark:text-white">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-start">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 mr-3"></div>
-                  <div>
-                    <p className="font-medium">{activity.action}</p>
-                    <div className="flex mt-1 text-sm text-gray-500">
-                      <p className="mr-2">{activity.user}</p>
-                      <p>•</p>
-                      <p className="ml-2">{activity.time}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-2">
+              <button 
+                onClick={() => handleQuickAction('new-chat')}
+                className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <span className="mr-2">💬</span> Start New Chat Session
+              </button>
+              <button 
+                onClick={() => router.push('/dashboard/agents')}
+                className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <span className="mr-2">🤖</span> Create AI Agent
+              </button>
+              <button 
+                onClick={() => router.push('/dashboard/integrations')}
+                className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <span className="mr-2">🔌</span> Add Integration
+              </button>
+              <button 
+                onClick={() => handleQuickAction('view-logs')}
+                className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <span className="mr-2">📜</span> View System Logs
+              </button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <Card>
+        {/* Recent Activity */}
+        <Card className="bg-white dark:bg-gray-800">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle className="text-gray-900 dark:text-white">Recent Activity</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <button 
-              onClick={() => handleQuickAction('create-workflow')}
-              className="w-full text-left p-3 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center"
-            >
-              <span className="mr-3 text-lg">🧠</span>
-              <div>
-                <p className="font-medium">Create Workflow</p>
-                <p className="text-sm text-gray-500">Build AI automation pipeline</p>
-              </div>
-            </button>
-            
-            <button 
-              onClick={() => handleQuickAction('new-chat')}
-              className="w-full text-left p-3 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center"
-            >
-              <span className="mr-3 text-lg">💬</span>
-              <div>
-                <p className="font-medium">New LLM Chat</p>
-                <p className="text-sm text-gray-500">Interact with AI models</p>
-              </div>
-            </button>
-            
-            <button 
-              onClick={() => handleQuickAction('view-logs')}
-              className="w-full text-left p-3 rounded-md border border-gray-200 hover:bg-gray-50 flex items-center"
-            >
-              <span className="mr-3 text-lg">📜</span>
-              <div>
-                <p className="font-medium">View Logs</p>
-                <p className="text-sm text-gray-500">Check system activities</p>
-              </div>
-            </button>
+          <CardContent>
+            <div className="space-y-3">
+              {(realStats?.recentActivity || recentActivity).map((activity: any) => (
+                <div key={activity.id} className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {activity.action || activity.description}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      by {activity.user || 'System'} • {activity.time || new Date(activity.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>

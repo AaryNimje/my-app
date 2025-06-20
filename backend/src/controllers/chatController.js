@@ -37,53 +37,30 @@ class ChatController {
 
   // Get all chat sessions for user
   async getSessions(req, res) {
-    try {
-      const userId = req.user.id;
-      const { limit = 50, offset = 0, is_active } = req.query;
+  try {
+    const userId = req.user.id;
+    const result = await db.query(
+      `SELECT cs.*, COUNT(cm.id) as message_count
+       FROM chat_sessions cs
+       LEFT JOIN chat_messages cm ON cs.id = cm.session_id
+       WHERE cs.user_id = $1
+       GROUP BY cs.id
+       ORDER BY cs.created_at DESC`,
+      [userId]
+    );
 
-      let query = `
-        SELECT cs.*, 
-               COUNT(cm.id) as message_count,
-               MAX(cm.created_at) as last_message_at,
-               w.name as workflow_name,
-               aa.name as agent_name
-        FROM chat_sessions cs
-        LEFT JOIN chat_messages cm ON cs.id = cm.session_id
-        LEFT JOIN workflows w ON cs.workflow_id = w.id
-        LEFT JOIN ai_agents aa ON cs.autonomous_agent_id = aa.id
-        WHERE cs.user_id = $1
-      `;
-
-      const params = [userId];
-      let paramIndex = 2;
-
-      if (is_active !== undefined) {
-        query += ` AND cs.is_active = $${paramIndex}`;
-        params.push(is_active === 'true');
-        paramIndex++;
-      }
-
-      query += `
-        GROUP BY cs.id, w.name, aa.name
-        ORDER BY COALESCE(MAX(cm.created_at), cs.created_at) DESC
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-      `;
-
-      params.push(limit, offset);
-
-      const result = await db.query(query, params);
-
-      res.json({
-        success: true,
-        sessions: result.rows
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
+    res.json({
+      success: true,
+      sessions: result.rows
+    });
+  } catch (error) {
+    console.error('Get sessions error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
+}
 
   // Send message to chat
   async sendMessage(req, res) {

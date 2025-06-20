@@ -1,40 +1,51 @@
 // backend/src/middleware/errorHandler.js
 const errorHandler = (err, req, res, next) => {
-  console.error('Error:', {
-    message: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method,
-    body: req.body,
-    user: req.user?.id
-  });
+  console.error('Error:', err.stack);
 
-  let error = {
-    message: err.message || 'Internal server error',
-    status: err.status || 500
-  };
-
+  // Mongoose validation error
   if (err.name === 'ValidationError') {
-    error.status = 400;
-    error.message = 'Validation error';
-  } else if (err.name === 'UnauthorizedError') {
-    error.status = 401;
-    error.message = 'Unauthorized';
-  } else if (err.name === 'JsonWebTokenError') {
-    error.status = 401;
-    error.message = 'Invalid token';
-  } else if (err.code === '23505') {
-    error.status = 409;
-    error.message = 'Duplicate entry';
+    const errors = Object.values(err.errors).map(e => e.message);
+    return res.status(400).json({
+      success: false,
+      error: 'Validation Error',
+      details: errors
+    });
   }
 
-  if (process.env.NODE_ENV === 'production' && error.status === 500) {
-    error.message = 'Internal server error';
+  // JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid token'
+    });
   }
 
-  res.status(error.status).json({
+  if (err.name === 'TokenExpiredError') {
+    return res.status(401).json({
+      success: false,
+      error: 'Token expired'
+    });
+  }
+
+  // PostgreSQL errors
+  if (err.code === '23505') {
+    return res.status(400).json({
+      success: false,
+      error: 'Duplicate entry'
+    });
+  }
+
+  if (err.code === '23503') {
+    return res.status(400).json({
+      success: false,
+      error: 'Referenced record not found'
+    });
+  }
+
+  // Default error
+  res.status(err.status || 500).json({
     success: false,
-    error: error.message,
+    error: err.message || 'Internal server error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 };

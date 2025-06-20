@@ -38,21 +38,26 @@ class APIClient {
   // Auth endpoints
   auth = {
     login: async (credentials: { email: string; password: string }) => {
-      const response = await this.request<{
-        success: boolean;
-        token: string;
-        user: { id: string; email: string; full_name: string; role: string };
-      }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(credentials),
-      });
-      
-      if (response.token) {
-        localStorage.setItem('token', response.token);
-      }
-      
-      return response;
-    },
+  const response = await this.request<{
+    success: boolean;
+    token: string;
+    user: { id: string; email: string; full_name: string; role: string };
+  }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  });
+  
+  if (response.token) {
+    localStorage.setItem('token', response.token);
+  }
+  
+  // IMPORTANT: Also store user data
+  if (response.user) {
+    localStorage.setItem('user', JSON.stringify(response.user));
+  }
+  
+  return response;
+},
 
     register: async (data: { email: string; password: string; full_name: string }) => {
       const response = await this.request<{
@@ -79,10 +84,10 @@ class APIClient {
     },
 
     logout: () => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    },
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');  // Also remove user data
+  window.location.href = '/login';
+},
   };
 
   // In the agents block:

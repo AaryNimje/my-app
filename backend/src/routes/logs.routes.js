@@ -1,27 +1,45 @@
+// backend/src/routes/logs.routes.js
 const express = require('express');
 const router = express.Router();
-const logsController = require('../controllers/logsController');
-const { protect, authorize } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
+const db = require('../config/database');
 
 router.use(protect);
 
-// Execution logs
-router.get('/executions', logsController.getExecutionLogs);
-router.get('/executions/:executionId', logsController.getExecutionDetails);
+// Get system logs
+router.get('/', async (req, res) => {
+  try {
+    const { limit = 100, offset = 0, type } = req.query;
+    const userId = req.user.id;
 
-// System logs (admin only)
-router.get('/system', authorize('admin'), logsController.getSystemLogs);
+    // For now, return mock data
+    const logs = [
+      {
+        id: 1,
+        type: 'info',
+        message: 'User logged in',
+        timestamp: new Date(),
+        user: req.user.email
+      },
+      {
+        id: 2,
+        type: 'success',
+        message: 'Agent created successfully',
+        timestamp: new Date(Date.now() - 3600000),
+        user: req.user.email
+      }
+    ];
 
-// Error logs
-router.get('/errors', logsController.getErrorLogs);
-
-// Activity logs
-router.get('/activity', logsController.getActivityLogs);
-
-// Token usage logs
-router.get('/token-usage', logsController.getTokenUsageLogs);
-
-// Export logs
-router.post('/export', logsController.exportLogs);
+    res.json({
+      success: true,
+      logs
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 module.exports = router;
