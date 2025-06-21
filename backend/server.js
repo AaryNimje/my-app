@@ -15,7 +15,7 @@ const db = require('./src/config/database');
 const authRoutes = require('./src/routes/auth.routes');
 const workflowRoutes = require('./src/routes/workflow.routes');
 const agentRoutes = require('./src/routes/agent.routes');
-const chatRoutes = require('./src/routes/chat.routes');
+const enhancedChatRoutes = require('./src/routes/enhanced.chat.routes');
 const integrationRoutes = require('./src/routes/integration.routes');
 const knowledgeRoutes = require('./src/routes/knowledge.routes');
 const llmRoutes = require('./src/routes/llm.routes');
@@ -59,7 +59,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/agents', agentRoutes);
-app.use('/api/chat', chatRoutes);  // Changed from /api/chats to /api/chat
+app.use('/api/chat', enhancedChatRoutes);// Changed from /api/chats to /api/chat
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
 app.use('/api/llm', llmRoutes);

@@ -5,42 +5,72 @@ const mcpService = require('../services/mcpService');
 class AgentController {
   // Create new agent
   async createAgent(req, res) {
-    try {
-      const { 
-        name, 
-        description, 
-        agent_type, 
-        custom_prompt,
-        model_id,
-        temperature = 0.7,
-        max_tokens = 1000
-      } = req.body;
-      const userId = req.user.id;
+  try {
+    const { 
+      name, 
+      description, 
+      agent_type, 
+      custom_prompt,
+      model_id,
+      temperature = 0.7,
+      max_tokens = 1000
+    } = req.body;
+    const userId = req.user.id;
 
-      const result = await db.query(
-        `INSERT INTO ai_agents (
-          user_id, name, agent_type, description, custom_prompt,
-          model_id, temperature, max_tokens
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING *`,
-        [
-          userId, name, agent_type || 'general', description, 
-          custom_prompt, model_id || 'gemini-pro', temperature, max_tokens
-        ]
-      );
+    console.log('Creating agent with data:', {
+      name,
+      agent_type,
+      description: description?.substring(0, 50) + '...',
+      model_id,
+      temperature,
+      max_tokens,
+      userId
+    });
 
-      res.status(201).json({
-        success: true,
-        agent: result.rows[0]
-      });
-    } catch (error) {
-      console.error('Create agent error:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
+    const query = `INSERT INTO ai_agents (
+      user_id, name, agent_type, description, custom_prompt,
+      model_id, temperature, max_tokens
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING *`;
+
+    const values = [
+      userId, 
+      name, 
+      agent_type || 'general', 
+      description, 
+      custom_prompt, 
+      model_id || 'gemini-pro', 
+      temperature, 
+      max_tokens
+    ];
+
+    console.log('SQL Query:', query);
+    console.log('Values:', values);
+
+    const result = await db.query(query, values);
+
+    console.log('Agent created successfully:', result.rows[0].id);
+
+    res.status(201).json({
+      success: true,
+      agent: result.rows[0]
+    });
+  } catch (error) {
+    console.error('=== AGENT CREATION ERROR ===');
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    console.error('Error detail:', error.detail);
+    console.error('Error hint:', error.hint);
+    console.error('Full error:', error);
+    console.error('===========================');
+    
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      detail: error.detail || 'Check backend console for more details'
+    });
   }
+}
 
   // Get all agents for user
   async getAgents(req, res) {

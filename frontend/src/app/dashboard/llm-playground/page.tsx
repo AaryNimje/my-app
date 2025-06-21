@@ -1,13 +1,11 @@
-// src/app/dashboard/llm-playground/page.tsx
 'use client';
-
 import React from 'react';
-import { LLMPlayground } from '@/components/llm-playground/LLMPlayground';
+import { EnhancedLLMPlayground } from '@/components/llm-playground/EnhancedLLMPlayground';
 
 export default function LLMPlaygroundPage() {
   return (
     <div className="h-screen">
-      <LLMPlayground />
+      <EnhancedLLMPlayground />
     </div>
   );
 }

@@ -251,6 +251,26 @@ agents = {
         });
       },
     },
+    uploadAttachment: async (sessionId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('attachments', file);
+    
+    return this.request(`/chat/sessions/${sessionId}/attachments`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  
+  downloadOutput: async (outputId: string) => {
+    window.open(`${this.baseURL}/chat/outputs/${outputId}/download`);
+  },
+  
+  updateSharing: async (sessionId: string, settings: any) => {
+    return this.request(`/chat/sessions/${sessionId}/sharing`, {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  },
   };
 
   // Integration endpoints

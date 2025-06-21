@@ -17,21 +17,21 @@ class LangChainService {
     // Initialize Gemini models
     if (process.env.GOOGLE_API_KEY) {
       this.models.set('gemini-pro', new ChatGoogleGenerativeAI({
-        modelName: 'gemini-pro',
+        model: 'gemini-pro',
         apiKey: process.env.GOOGLE_API_KEY,
         temperature: 0.7,
         maxOutputTokens: 2048,
       }));
 
       this.models.set('gemini-pro-vision', new ChatGoogleGenerativeAI({
-        modelName: 'gemini-pro-vision',
+        model: 'gemini-pro-vision',
         apiKey: process.env.GOOGLE_API_KEY,
         temperature: 0.7,
         maxOutputTokens: 2048,
       }));
     }
 
-    // Initialize OpenAI models (if API key exists)
+    // Initialize OpenAI models
     if (process.env.OPENAI_API_KEY) {
       this.models.set('gpt-3.5-turbo', new ChatOpenAI({
         modelName: 'gpt-3.5-turbo',
@@ -46,7 +46,7 @@ class LangChainService {
       }));
     }
 
-    // Initialize Anthropic models (if API key exists)
+    // Initialize Anthropic models
     if (process.env.ANTHROPIC_API_KEY) {
       this.models.set('claude-3-sonnet', new ChatAnthropic({
         modelName: 'claude-3-sonnet-20240229',
@@ -57,18 +57,15 @@ class LangChainService {
   }
 
   async getModel(modelName) {
-    // First check if model is already initialized
     if (this.models.has(modelName)) {
       return this.models.get(modelName);
     }
 
-    // Check user's API keys in database
     const userApiKeys = await this.getUserApiKeys();
-    
-    // Initialize Gemini with user's key
+
     if (modelName.startsWith('gemini') && userApiKeys.google) {
       const model = new ChatGoogleGenerativeAI({
-        modelName: modelName,
+        model: modelName,
         apiKey: userApiKeys.google,
         temperature: 0.7,
         maxOutputTokens: 2048,
@@ -77,7 +74,6 @@ class LangChainService {
       return model;
     }
 
-    // Initialize OpenAI with user's key
     if (modelName.startsWith('gpt') && userApiKeys.openai) {
       const model = new ChatOpenAI({
         modelName: modelName,
@@ -88,7 +84,6 @@ class LangChainService {
       return model;
     }
 
-    // Default to Gemini if available
     if (this.models.has('gemini-pro')) {
       return this.models.get('gemini-pro');
     }
@@ -97,8 +92,6 @@ class LangChainService {
   }
 
   async getUserApiKeys() {
-    // In a real implementation, get the current user's ID from context
-    // For now, return environment variables
     return {
       google: process.env.GOOGLE_API_KEY,
       openai: process.env.OPENAI_API_KEY,
@@ -140,7 +133,6 @@ class LangChainService {
       memory
     } = options;
 
-    // Update model settings if provided
     if (temperature !== undefined) {
       model.temperature = temperature;
     }
@@ -163,6 +155,14 @@ class LangChainService {
     );
 
     return executor;
+  }
+
+  async safeModelCall(model, messages) {
+    const validMessages = Array.isArray(messages) && messages.length > 0
+      ? messages
+      : [{ role: 'user', content: 'Hello!' }];
+
+    return await model.call(validMessages);
   }
 
   async trackTokenUsage(userId, modelId, promptTokens, completionTokens, sessionId = null) {
