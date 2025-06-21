@@ -13,7 +13,7 @@ class APIClient {
     this.baseURL = baseURL;
   }
 
-  private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+  private async request<T = any>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const token = localStorage.getItem('token');
     
     const config: RequestInit = {
@@ -25,39 +25,48 @@ class APIClient {
       },
     };
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, config);
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || error.message || 'Request failed');
-    }
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, config);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+        }
+        const error = await response.json();
+        throw new Error(error.error || error.message || 'Request failed');
+      }
 
-    return response.json();
+      return response.json();
+    } catch (error) {
+      console.error('API Request failed:', error);
+      throw error;
+    }
   }
 
   // Auth endpoints
   auth = {
     login: async (credentials: { email: string; password: string }) => {
-  const response = await this.request<{
-    success: boolean;
-    token: string;
-    user: { id: string; email: string; full_name: string; role: string };
-  }>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(credentials),
-  });
-  
-  if (response.token) {
-    localStorage.setItem('token', response.token);
-  }
-  
-  // IMPORTANT: Also store user data
-  if (response.user) {
-    localStorage.setItem('user', JSON.stringify(response.user));
-  }
-  
-  return response;
-},
+      const response = await this.request<{
+        success: boolean;
+        token: string;
+        user: { id: string; email: string; full_name: string; role: string };
+      }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      });
+      
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
+      
+      if (response.user) {
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
+      
+      return response;
+    },
 
     register: async (data: { email: string; password: string; full_name: string }) => {
       const response = await this.request<{
@@ -84,50 +93,49 @@ class APIClient {
     },
 
     logout: () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');  // Also remove user data
-  window.location.href = '/login';
-},
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    },
   };
 
-  // In the agents block:
-agents = {
-  list: async () => {
-    return this.request<{ success: boolean; agents: any[] }>('/agents');
-  },
+  // Agents endpoints
+  agents = {
+    list: async () => {
+      return this.request<{ success: boolean; agents: any[] }>('/agents');
+    },
 
-  create: async (data: any) => {
-    return this.request<{ success: boolean }>('/agents', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
+    create: async (data: any) => {
+      return this.request<{ success: boolean }>('/agents', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
 
-  get: async (id: string) => {
-    return this.request<{ success: boolean; agent: any }>(`/agents/${id}`);
-  },
+    get: async (id: string) => {
+      return this.request<{ success: boolean; agent: any }>(`/agents/${id}`);
+    },
 
-  update: async (id: string, data: any) => {
-    return this.request<{ success: boolean }>(`/agents/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  },
+    update: async (id: string, data: any) => {
+      return this.request<{ success: boolean }>(`/agents/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    },
 
-  delete: async (id: string) => {
-    return this.request<{ success: boolean }>(`/agents/${id}`, {
-      method: 'DELETE',
-    });
-  },
+    delete: async (id: string) => {
+      return this.request<{ success: boolean }>(`/agents/${id}`, {
+        method: 'DELETE',
+      });
+    },
 
-  execute: async (id: string, input: any) => {
-    return this.request<{ success: boolean; result: any }>(`/agents/${id}/execute`, {
-      method: 'POST',
-      body: JSON.stringify({ input }),
-    });
-  },
-}
-
+    execute: async (id: string, input: any) => {
+      return this.request<{ success: boolean; result: any }>(`/agents/${id}/execute`, {
+        method: 'POST',
+        body: JSON.stringify({ input }),
+      });
+    },
+  };
 
   // Workflows endpoints
   workflows = {
@@ -174,7 +182,7 @@ agents = {
       },
 
       create: async (data: { title: string; agent_id?: string }) => {
-        return this.request('/chat/sessions', {
+        return this.request<{ success: boolean; session: any }>('/chat/sessions', {
           method: 'POST',
           body: JSON.stringify(data),
         });
@@ -193,22 +201,68 @@ agents = {
 
     messages: {
       send: async (sessionId: string, message: string, model_id?: string, agent_id?: string) => {
-        return this.request(`/chat/sessions/${sessionId}/messages`, {
+        return this.request<{
+          success: boolean;
+          userMessage?: any;
+          assistantMessage?: any;
+          usage?: {
+            prompt_tokens: number;
+            completion_tokens: number;
+            total_tokens: number;
+          };
+          output_files?: any[];
+        }>(`/chat/sessions/${sessionId}/messages`, {
           method: 'POST',
-          body: JSON.stringify({ message, model_id, agent_id }),
+          body: JSON.stringify({ content: message, model_id, agent_id }),
         });
       },
 
       list: async (sessionId: string) => {
-        return this.request(`/chat/sessions/${sessionId}/messages`);
+        return this.request<{ 
+          success: boolean; 
+          messages?: any[] 
+        }>(`/chat/sessions/${sessionId}/messages`);
       },
     },
 
-    // Direct chat without session (for LLM Playground)
+    // Direct chat without session
     sendMessage: async (message: string, agent_id?: string, model_id?: string) => {
       return this.request('/chat/messages', {
         method: 'POST',
         body: JSON.stringify({ message, agent_id, model_id }),
+      });
+    },
+
+    // File operations
+    uploadAttachment: async (sessionId: string, file: File) => {
+      const formData = new FormData();
+      formData.append('attachments', file);
+      
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${this.baseURL}/chat/sessions/${sessionId}/attachments`, {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      
+      return response.json();
+    },
+    
+    downloadOutput: async (outputId: string) => {
+      window.open(`${this.baseURL}/chat/outputs/${outputId}/download`);
+    },
+    
+    updateSharing: async (sessionId: string, settings: any) => {
+      return this.request(`/chat/sessions/${sessionId}/sharing`, {
+        method: 'PUT',
+        body: JSON.stringify(settings),
       });
     },
   };
@@ -251,26 +305,6 @@ agents = {
         });
       },
     },
-    uploadAttachment: async (sessionId: string, file: File) => {
-    const formData = new FormData();
-    formData.append('attachments', file);
-    
-    return this.request(`/chat/sessions/${sessionId}/attachments`, {
-      method: 'POST',
-      body: formData,
-    });
-  },
-  
-  downloadOutput: async (outputId: string) => {
-    window.open(`${this.baseURL}/chat/outputs/${outputId}/download`);
-  },
-  
-  updateSharing: async (sessionId: string, settings: any) => {
-    return this.request(`/chat/sessions/${sessionId}/sharing`, {
-      method: 'PUT',
-      body: JSON.stringify(settings),
-    });
-  },
   };
 
   // Integration endpoints

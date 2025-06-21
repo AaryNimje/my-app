@@ -1,8 +1,7 @@
 import React, { memo } from 'react';
-import { Handle, Position } from '@xyflow/react';
-import { CustomNodeProps, LLMNodeData } from './types';
+import { Handle, Position, NodeProps } from 'reactflow';
 
-const LLMNode = memo(({ data, isConnectable }: CustomNodeProps<LLMNodeData>) => {
+const LLMNode = memo<NodeProps>(({ data, isConnectable }) => {
   const modelIcons: { [key: string]: string } = {
     'gpt-3.5-turbo': '🤖',
     'gpt-4': '🧠',
@@ -10,7 +9,7 @@ const LLMNode = memo(({ data, isConnectable }: CustomNodeProps<LLMNodeData>) => 
     'gemini-pro': '💎',
   };
 
-  const modelName = data.model || 'gpt-3.5-turbo';
+  const modelName = data?.model || 'gpt-3.5-turbo';
   const icon = modelIcons[modelName] || '🧠';
 
   return (
@@ -26,14 +25,14 @@ const LLMNode = memo(({ data, isConnectable }: CustomNodeProps<LLMNodeData>) => 
       <div className="flex items-center gap-2 mb-2">
         <span className="text-2xl">{icon}</span>
         <div className="font-semibold text-gray-900 dark:text-gray-100">
-          {data.label || 'LLM Model'}
+          {data?.label || 'LLM Model'}
         </div>
       </div>
       
       <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
         <div>Model: {modelName}</div>
-        <div>Temp: {data.temperature || 0.7}</div>
-        {data.maxTokens && <div>Max Tokens: {data.maxTokens}</div>}
+        <div>Temp: {data?.temperature || 0.7}</div>
+        {data?.maxTokens && <div>Max Tokens: {data.maxTokens}</div>}
       </div>
 
       <Handle

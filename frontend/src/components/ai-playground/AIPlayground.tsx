@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import ReactFlow, {
+import {
+  ReactFlow,
   Node,
   Edge,
   addEdge,
@@ -13,18 +14,16 @@ import ReactFlow, {
   Background,
   Panel,
   ReactFlowProvider,
-  useReactFlow,
+  ReactFlowInstance,
   NodeTypes,
   MarkerType,
-  BackgroundVariant,
-  ReactFlowInstance,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
+} from 'reactflow';
+import 'reactflow/dist/style.css';
 import { Button } from '@/components/ui/button';
 import { workflowsApi } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 
-// Custom node types
+// Import custom nodes
 import FileInputNode from './nodes/FileInputNode';
 import LLMNode from './nodes/LLMNode';
 import AgentNode from './nodes/AgentNode';
@@ -38,28 +37,18 @@ interface NodeData {
   [key: string]: any;
 }
 
-interface WorkflowResponse {
-  success: boolean;
-  workflow?: {
-    id: string;
-    name: string;
-    canvas_state?: {
-      nodes: Node<NodeData>[];
-      edges: Edge[];
-    };
-  };
-}
+type CustomNode = Node<NodeData>;
 
 const nodeTypes: NodeTypes = {
-  fileInput: FileInputNode as any,
-  llm: LLMNode as any,
-  agent: AgentNode as any,
-  output: OutputNode as any,
-  condition: ConditionNode as any,
-  tool: ToolNode as any,
+  fileInput: FileInputNode,
+  llm: LLMNode,
+  agent: AgentNode,
+  output: OutputNode,
+  condition: ConditionNode,
+  tool: ToolNode,
 };
 
-const initialNodes: Node<NodeData>[] = [
+const initialNodes: CustomNode[] = [
   {
     id: '1',
     type: 'fileInput',
@@ -76,14 +65,13 @@ interface AIPlaygroundProps {
 function AIPlaygroundContent({ workflowId, readonly = false }: AIPlaygroundProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
-  const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
+  const [selectedNode, setSelectedNode] = useState<CustomNode | null>(null);
   const [workflowName, setWorkflowName] = useState('New Workflow');
   const [isSaving, setIsSaving] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
-  // Load workflow if ID provided
   useEffect(() => {
     if (workflowId) {
       loadWorkflow(workflowId);
@@ -93,10 +81,9 @@ function AIPlaygroundContent({ workflowId, readonly = false }: AIPlaygroundProps
   const loadWorkflow = async (id: string) => {
     try {
       const response = await workflowsApi.get(id);
-      const typedResponse = response as WorkflowResponse;
       
-      if (typedResponse.success && typedResponse.workflow) {
-        const workflow = typedResponse.workflow;
+      if (response && response.success && response.workflow) {
+        const workflow = response.workflow;
         setWorkflowName(workflow.name);
         
         if (workflow.canvas_state) {
@@ -145,7 +132,7 @@ function AIPlaygroundContent({ workflowId, readonly = false }: AIPlaygroundProps
         y: event.clientY,
       });
 
-      const newNode: Node<NodeData> = {
+      const newNode: CustomNode = {
         id: `${type}-${Date.now()}`,
         type,
         position,
@@ -157,7 +144,7 @@ function AIPlaygroundContent({ workflowId, readonly = false }: AIPlaygroundProps
     [reactFlowInstance, setNodes, readonly]
   );
 
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node<NodeData>) => {
+  const onNodeClick = useCallback((event: React.MouseEvent, node: CustomNode) => {
     setSelectedNode(node);
   }, []);
 
@@ -199,9 +186,8 @@ function AIPlaygroundContent({ workflowId, readonly = false }: AIPlaygroundProps
     setIsExecuting(true);
     try {
       const response = await workflowsApi.execute(workflowId);
-      const typedResponse = response as { success: boolean };
       
-      if (typedResponse.success) {
+      if (response && response.success) {
         toast.success('Workflow execution started');
       }
     } catch (error) {
@@ -371,7 +357,7 @@ function NodePaletteItem({ type, label, icon }: { type: string; label: string; i
 }
 
 // Node Properties Component
-function NodeProperties({ node, onChange }: { node: Node<NodeData>; onChange: (data: NodeData) => void }) {
+function NodeProperties({ node, onChange }: { node: CustomNode; onChange: (data: NodeData) => void }) {
   const [nodeData, setNodeData] = useState<NodeData>(node.data);
 
   useEffect(() => {

@@ -20,26 +20,7 @@ import {
   Settings
 } from 'lucide-react';
 
-import {
-  ApiResponse,
-  ChatSession,
-  SessionsResponse,
-  SessionResponse,
-  ChatMessage,
-  MessagesResponse,
-  MessageResponse,
-  LLMModel,
-  ModelsResponse,
-  Agent,
-  AgentsResponse,
-  Workflow,
-  WorkflowsResponse,
-  KnowledgeDocument,
-  KnowledgeResponse,
-  OutputFile,
-  TokenUsage
-} from '@/types/api';
-
+// Type definitions
 interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -57,6 +38,60 @@ interface Attachment {
   type: string;
   size: number;
   url?: string;
+}
+
+interface OutputFile {
+  id: string;
+  name: string;
+  type: string;
+  content: string;
+  downloadUrl?: string;
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count?: number;
+  is_shared?: boolean;
+  share_mode?: 'view' | 'edit';
+  workflow_id?: string;
+  knowledge_base_id?: string;
+}
+
+interface TokenUsage {
+  used: number;
+  limit: number;
+  model: string;
+}
+
+interface LLMModel {
+  id: string;
+  model_name: string;
+  display_name: string;
+  provider: string;
+}
+
+interface Agent {
+  id: string;
+  name: string;
+  type: string;
+  description?: string;
+}
+
+interface Workflow {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+}
+
+interface KnowledgeDocument {
+  id: string;
+  name: string;
+  content?: string;
+  file_type?: string;
 }
 
 export function EnhancedLLMPlayground() {
@@ -87,10 +122,10 @@ export function EnhancedLLMPlayground() {
   });
 
   // Available resources
-  const [models, setModels] = useState<any[]>([]);
-  const [agents, setAgents] = useState<any[]>([]);
-  const [workflows, setWorkflows] = useState<any[]>([]);
-  const [knowledgeBases, setKnowledgeBases] = useState<any[]>([]);
+  const [models, setModels] = useState<LLMModel[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeDocument[]>([]);
 
   // Load initial data
   useEffect(() => {
@@ -108,34 +143,19 @@ export function EnhancedLLMPlayground() {
 
   const loadSessions = async () => {
     try {
-      const response = await chatApi.sessions.list() as SessionsResponse;
-      if (response.success && response.sessions) {
+      const response = await chatApi.sessions.list();
+      if (response && response.success && response.sessions) {
         setSessions(response.sessions);
       }
     } catch (error) {
-      console.error('Failed to load models:', error);
-    }
-  };
-
-  const loadAgents = async () => {
-    try {
-      const response = await agentsApi.list() as AgentsResponse;
-      if (response.success && response.agents) {
-        setAgents(response.agents);
-        // Fix for 'response.models' is possibly 'undefined'
-        if (response.agents.length > 0 && !settings.agent) {
-          setSettings(prev => ({ ...prev, agent: response.agents[0].id }));
-        }
-      }
-    } catch (error) {
-      console.error'Failed to load sessions:', error);
+      console.error('Failed to load sessions:', error);
     }
   };
 
   const loadModels = async () => {
     try {
-      const response = await llmApi.models() as ModelsResponse;
-      if (response.success && response.models) {
+      const response = await llmApi.models();
+      if (response && response.success && response.models) {
         setModels(response.models);
       }
     } catch (error) {
@@ -145,8 +165,8 @@ export function EnhancedLLMPlayground() {
 
   const loadAgents = async () => {
     try {
-      const response = await agentsApi.list() as AgentsResponse;
-      if (response.success && response.agents) {
+      const response = await agentsApi.list();
+      if (response && response.success && response.agents) {
         setAgents(response.agents);
       }
     } catch (error) {
@@ -156,8 +176,8 @@ export function EnhancedLLMPlayground() {
 
   const loadWorkflows = async () => {
     try {
-      const response = await workflowsApi.list() as WorkflowsResponse;
-      if (response.success && response.workflows) {
+      const response = await workflowsApi.list();
+      if (response && response.success && response.workflows) {
         setWorkflows(response.workflows);
       }
     } catch (error) {
@@ -167,8 +187,8 @@ export function EnhancedLLMPlayground() {
 
   const loadKnowledgeBases = async () => {
     try {
-      const response = await knowledgeApi.documents.list() as KnowledgeResponse;
-      if (response.success && response.documents) {
+      const response = await knowledgeApi.documents.list();
+      if (response && response.success && response.documents) {
         setKnowledgeBases(response.documents);
       }
     } catch (error) {
@@ -180,9 +200,9 @@ export function EnhancedLLMPlayground() {
     try {
       const response = await chatApi.sessions.create({
         title: `Chat ${new Date().toLocaleString()}`,
-      }) as SessionResponse;
+      });
       
-      if (response.success && response.session) {
+      if (response && response.success && response.session) {
         await loadSessions();
         selectSession(response.session);
       }
@@ -195,9 +215,9 @@ export function EnhancedLLMPlayground() {
     setCurrentSession(session);
     
     try {
-      const response = await chatApi.messages.list(session.id) as MessagesResponse;
-      if (response.success && response.messages) {
-        const formattedMessages: Message[] = response.messages.map((msg: ChatMessage) => ({
+      const response = await chatApi.messages.list(session.id);
+      if (response && response.success && response.messages) {
+        const formattedMessages: Message[] = response.messages.map((msg: any) => ({
           id: msg.id,
           role: msg.role,
           content: msg.content,
@@ -249,9 +269,9 @@ export function EnhancedLLMPlayground() {
         userMessage.content,
         settings.model,
         settings.agent || undefined
-      ) as MessageResponse;
+      );
 
-      if (response.success && response.assistantMessage) {
+      if (response && response.success && response.assistantMessage) {
         const assistantMessage: Message = {
           id: response.assistantMessage.id,
           role: 'assistant',
@@ -268,7 +288,7 @@ export function EnhancedLLMPlayground() {
         if (response.usage) {
           setTokenUsage(prev => ({
             ...prev,
-            used: prev.used + response.usage.total_tokens,
+            used: prev.used + (response.usage?.total_tokens || 0),
           }));
         }
       }
@@ -287,16 +307,21 @@ export function EnhancedLLMPlayground() {
 
   const downloadOutput = async (file: OutputFile) => {
     try {
-      const response = await fetch(file.downloadUrl || '');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      if (chatApi.downloadOutput) {
+        await chatApi.downloadOutput(file.id);
+      } else {
+        // Fallback to direct download
+        const response = await fetch(file.downloadUrl || '');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
     } catch (error) {
       toast.error('Failed to download file');
     }
@@ -312,8 +337,10 @@ export function EnhancedLLMPlayground() {
       await navigator.clipboard.writeText(shareLink);
       toast.success('Share link copied to clipboard!');
       
-      // Update session sharing status
-      // This would require a backend endpoint to set sharing permissions
+      // Update session sharing status if API method exists
+      if (chatApi.updateSharing) {
+        await chatApi.updateSharing(currentSession.id, { is_shared: true, share_mode: shareMode });
+      }
     } catch (error) {
       toast.error('Failed to share chat');
     }

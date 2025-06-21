@@ -1,4 +1,4 @@
-import { NodeProps } from '@xyflow/react';
+import { NodeProps, Node } from '@xyflow/react';
 
 export interface BaseNodeData {
   label: string;
@@ -40,4 +40,13 @@ export interface ToolNodeData extends BaseNodeData {
   parameters?: Record<string, any>;
 }
 
-export type CustomNodeProps<T = BaseNodeData> = NodeProps<T>;
+// Correct way to define custom node props
+export type CustomNodeProps<T extends BaseNodeData = BaseNodeData> = NodeProps<Node<T>>;
+
+// Alternative approach if you want to be more explicit
+export type FileInputNodeProps = NodeProps<Node<FileInputNodeData>>;
+export type LLMNodeProps = NodeProps<Node<LLMNodeData>>;
+export type AgentNodeProps = NodeProps<Node<AgentNodeData>>;
+export type OutputNodeProps = NodeProps<Node<OutputNodeData>>;
+export type ConditionNodeProps = NodeProps<Node<ConditionNodeData>>;
+export type ToolNodeProps = NodeProps<Node<ToolNodeData>>;
