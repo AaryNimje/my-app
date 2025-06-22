@@ -105,19 +105,19 @@ class APIClient {
 
   // Admin endpoints
   admin = {
-    getPendingRegistrations: async () => {
-      return this.request<{
-        success: boolean;
-        requests: Array<{
-          id: string;
-          email: string;
-          full_name: string;
-          requested_role: string;
-          requested_at: string;
-          user_id: string;
-        }>;
-      }>('/admin/pending-registrations');
-    },
+  getPendingRegistrations: async () => {
+    return this.request<{
+      success: boolean;
+      requests: Array<{
+        id: string;
+        email: string;
+        full_name: string;
+        requested_role: string;
+        requested_at: string;
+        user_id: string;
+      }>;
+    }>('/admin/pending-registrations');
+  },
 
     approveRegistration: async (requestId: string, role?: string) => {
       return this.request<{
@@ -157,23 +157,23 @@ class APIClient {
 
   // Q&A endpoints
   qa = {
-    uploadDocument: async (formData: FormData) => {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${this.baseURL}/qa/upload`, {
-        method: 'POST',
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Upload failed');
-      }
-      
-      return response.json();
-    },
+  uploadDocument: async (formData: FormData) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseURL}/qa/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Upload failed');
+    }
+    
+    return response.json();
+  },
 
     generateLink: async (data: {
       documentId: string;

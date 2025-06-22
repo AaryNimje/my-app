@@ -16,7 +16,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, full_name: string) => Promise<void>;
+  register: (email: string, password: string, full_name: string, requested_role?: string) => Promise<any>;
   logout: () => void;
   checkAuth: () => Promise<void>;
 }
@@ -70,13 +70,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (email: string, password: string, full_name: string) => {
+  const register = async (email: string, password: string, full_name: string, requested_role?: string) => {
     try {
-      const response = await authApi.register({ email, password, full_name });
+      const response = await authApi.register({ email, password, full_name, requested_role });
+      
+      if (response.success && response.requiresApproval) {
+        // Don't set user or redirect, just return the response
+        return response;
+      }
+      
       if (response.success && response.user) {
         setUser(response.user);
         router.push('/dashboard');
       }
+      
+      return response;
     } catch (error: any) {
       throw new Error(error.message || 'Registration failed');
     }

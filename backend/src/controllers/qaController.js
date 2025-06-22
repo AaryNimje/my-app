@@ -1,10 +1,9 @@
-// backend/src/controllers/qaController.js
 const db = require('../config/database');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
-const pdfParse = require('pdf-parse'); // npm install pdf-parse
+const pdfParse = require('pdf-parse');
 
 // Configure multer for PDF uploads
 const storage = multer.diskStorage({
@@ -34,7 +33,6 @@ const upload = multer({
 });
 
 class QAController {
-  // Upload and process PDF
   async uploadDocument(req, res) {
     try {
       if (!req.file) {
@@ -73,24 +71,53 @@ class QAController {
     }
   }
 
-  // Process PDF and extract Q&A pairs
   async processPDF(documentId, filePath) {
     try {
-      const dataBuffer = await fs.readFile(filePath);
-      const pdfData = await pdfParse(dataBuffer);
+      // Option 1: Use Python RAG system (recommended)
+      const { spawn } = require('child_process');
       
-      // Extract Q&A pairs from PDF text
-      // This is a simplified example - you'll need to implement proper Q&A extraction
-      const qaData = this.extractQAPairs(pdfData.text);
+      const python = spawn('python', [
+        path.join(__dirname, '../../../mcp_rag_v1/reader.py'),
+        '--mode', 'process_qa',
+        '--input', filePath
+      ]);
 
-      // Update document with processed data
-      await db.query(`
-        UPDATE qa_documents 
-        SET status = 'processed',
-            processed_data = $1,
-            processed_at = CURRENT_TIMESTAMP
-        WHERE id = $2
-      `, [JSON.stringify(qaData), documentId]);
+      let qaData = '';
+      let errorData = '';
+      
+      python.stdout.on('data', (data) => {
+        qaData += data.toString();
+      });
+
+      python.stderr.on('data', (data) => {
+        errorData += data.toString();
+      });
+
+      python.on('close', async (code) => {
+        if (code === 0) {
+          try {
+            const parsedData = JSON.parse(qaData);
+            
+            await db.query(`
+              UPDATE qa_documents 
+              SET status = 'processed',
+                  processed_data = $1,
+                  processed_at = CURRENT_TIMESTAMP
+              WHERE id = $2
+            `, [JSON.stringify(parsedData), documentId]);
+          } catch (parseError) {
+            throw new Error('Failed to parse RAG output: ' + parseError.message);
+          }
+        } else {
+          throw new Error('RAG processing failed: ' + errorData);
+        }
+      });
+
+      // Fallback to basic PDF parsing if Python RAG fails
+      python.on('error', async (error) => {
+        console.warn('Python RAG failed, falling back to basic parsing:', error);
+        await this.fallbackPDFProcessing(documentId, filePath);
+      });
 
     } catch (error) {
       console.error('PDF processing error:', error);
@@ -103,9 +130,35 @@ class QAController {
     }
   }
 
-  // Extract Q&A pairs from text (simplified implementation)
+  async fallbackPDFProcessing(documentId, filePath) {
+    try {
+      const dataBuffer = await fs.readFile(filePath);
+      const pdfData = await pdfParse(dataBuffer);
+      
+      // Extract Q&A pairs from PDF text
+      const qaData = this.extractQAPairs(pdfData.text);
+
+      // Update document with processed data
+      await db.query(`
+        UPDATE qa_documents 
+        SET status = 'processed',
+            processed_data = $1,
+            processed_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `, [JSON.stringify(qaData), documentId]);
+
+    } catch (error) {
+      console.error('Fallback PDF processing error:', error);
+      await db.query(`
+        UPDATE qa_documents 
+        SET status = 'failed',
+            error_message = $1
+        WHERE id = $2
+      `, [error.message, documentId]);
+    }
+  }
+
   extractQAPairs(text) {
-    // This is a basic implementation - you should improve this based on your PDF format
     const lines = text.split('\n').filter(line => line.trim());
     const qaPairs = [];
     
@@ -142,7 +195,6 @@ class QAController {
     return qaPairs;
   }
 
-  // Generate study link
   async generateLink(req, res) {
     try {
       const { documentId, title, description, settings = {} } = req.body;
@@ -191,7 +243,6 @@ class QAController {
     }
   }
 
-  // Get teacher's documents
   async getDocuments(req, res) {
     try {
       const teacherId = req.user.id;
@@ -222,7 +273,6 @@ class QAController {
     }
   }
 
-  // Get teacher's study links
   async getStudyLinks(req, res) {
     try {
       const teacherId = req.user.id;
@@ -259,7 +309,6 @@ class QAController {
     }
   }
 
-  // Get responses for a study link
   async getResponses(req, res) {
     try {
       const { linkId } = req.params;
@@ -306,7 +355,6 @@ class QAController {
     }
   }
 
-  // Student access - Get Q&A content by link code
   async getStudyContent(req, res) {
     try {
       const { linkCode } = req.params;
@@ -351,11 +399,10 @@ class QAController {
     }
   }
 
-  // Submit student responses
   async submitResponses(req, res) {
     try {
       const { linkCode } = req.params;
-      const { studentEmail, studentName, responses } = req.body;
+      const { studentEmail, studentName, responses, timeSpent } = req.body;
 
       // Get study link
       const linkResult = await db.query(
@@ -372,7 +419,7 @@ class QAController {
 
       const studyLinkId = linkResult.rows[0].id;
 
-      // Calculate score (simplified - you can improve this)
+      // Calculate score
       const score = this.calculateScore(responses);
 
       // Save responses
@@ -387,7 +434,7 @@ class QAController {
         studentName,
         JSON.stringify(responses),
         score,
-        req.body.timeSpent || 0,
+        timeSpent || 0,
         req.ip
       ]);
 
@@ -418,6 +465,91 @@ class QAController {
     });
     
     return (correctCount / responses.length) * 100;
+  }
+
+  // Toggle study link active status
+  async toggleLinkStatus(req, res) {
+    try {
+      const { linkId } = req.params;
+      const teacherId = req.user.id;
+
+      // Verify link belongs to teacher
+      const linkCheck = await db.query(
+        'SELECT id, is_active FROM study_links WHERE id = $1 AND teacher_id = $2',
+        [linkId, teacherId]
+      );
+
+      if (linkCheck.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied'
+        });
+      }
+
+      const currentStatus = linkCheck.rows[0].is_active;
+      const newStatus = !currentStatus;
+
+      await db.query(
+        'UPDATE study_links SET is_active = $1 WHERE id = $2',
+        [newStatus, linkId]
+      );
+
+      res.json({
+        success: true,
+        message: `Study link ${newStatus ? 'activated' : 'deactivated'} successfully`,
+        isActive: newStatus
+      });
+    } catch (error) {
+      console.error('Error toggling link status:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to toggle link status'
+      });
+    }
+  }
+
+  // Delete document
+  async deleteDocument(req, res) {
+    try {
+      const { documentId } = req.params;
+      const teacherId = req.user.id;
+
+      // Get document info
+      const docResult = await db.query(
+        'SELECT file_path FROM qa_documents WHERE id = $1 AND teacher_id = $2',
+        [documentId, teacherId]
+      );
+
+      if (docResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Document not found'
+        });
+      }
+
+      const filePath = docResult.rows[0].file_path;
+
+      // Delete from database
+      await db.query('DELETE FROM qa_documents WHERE id = $1', [documentId]);
+
+      // Delete file from filesystem
+      try {
+        await fs.unlink(filePath);
+      } catch (fileError) {
+        console.warn('Failed to delete file:', fileError);
+      }
+
+      res.json({
+        success: true,
+        message: 'Document deleted successfully'
+      });
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to delete document'
+      });
+    }
   }
 }
 

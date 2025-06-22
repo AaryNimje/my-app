@@ -1,13 +1,13 @@
-// backend/src/controllers/authController.js
 const bcrypt = require('bcrypt');
 const db = require('../config/database');
 const { generateToken } = require('../middleware/auth');
-const { sendEmail } = require('../utils/emailService'); // You'll need to implement this
 
 class AuthController {
   async register(req, res) {
     try {
       const { email, password, full_name, requested_role = 'student' } = req.body;
+
+      console.log('Registration attempt for:', email);
 
       // Check if user exists
       const existingUser = await db.query(
@@ -30,7 +30,7 @@ class AuthController {
       const result = await db.query(
         `INSERT INTO users (email, password_hash, full_name, role, requested_role, status)
          VALUES ($1, $2, $3, $4, $5, 'pending')
-         RETURNING id, email, full_name`,
+         RETURNING id, email, full_name, role`,
         [email, passwordHash, full_name, requested_role, requested_role]
       );
 
@@ -42,9 +42,6 @@ class AuthController {
          VALUES ($1, $2, $3, $4)`,
         [email, full_name, requested_role, user.id]
       );
-
-      // Notify admins (implement email/notification service)
-      await this.notifyAdminsOfNewRegistration(user);
 
       res.status(201).json({
         success: true,
@@ -63,12 +60,23 @@ class AuthController {
   async login(req, res) {
     try {
       const { email, password } = req.body;
+      
+      console.log('Login attempt for:', email);
 
+      // Validate input
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email and password are required'
+        });
+      }
+
+      // Get user
       const result = await db.query(
         'SELECT * FROM users WHERE email = $1',
         [email]
       );
-
+      
       if (result.rows.length === 0) {
         return res.status(401).json({
           success: false,
@@ -89,6 +97,7 @@ class AuthController {
 
       // Verify password
       const isValid = await bcrypt.compare(password, user.password_hash);
+      
       if (!isValid) {
         return res.status(401).json({
           success: false,
@@ -124,17 +133,32 @@ class AuthController {
     }
   }
 
-  async notifyAdminsOfNewRegistration(user) {
-    // Get all admin users
-    const admins = await db.query(
-      'SELECT email FROM users WHERE role = $1 AND status = $2',
-      ['admin', 'approved']
-    );
+  async getProfile(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      const result = await db.query(
+        'SELECT id, email, full_name, role, created_at FROM users WHERE id = $1',
+        [userId]
+      );
 
-    // Send notification to each admin
-    for (const admin of admins.rows) {
-      // Implement email notification or in-app notification
-      console.log(`Notifying admin ${admin.email} of new registration from ${user.email}`);
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        user: result.rows[0]
+      });
+    } catch (error) {
+      console.error('Get profile error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get profile'
+      });
     }
   }
 }

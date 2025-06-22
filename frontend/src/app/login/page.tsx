@@ -29,7 +29,12 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } catch (err: any) {
-      setError(err.message || 'Invalid email or password');
+      // Handle pending account approval
+      if (err.response?.status === 403 && err.response?.data?.status === 'pending') {
+        setError('Your account is pending approval. Please wait for admin approval.');
+      } else {
+        setError(err.response?.data?.error || err.message || 'Invalid email or password');
+      }
     } finally {
       setLoading(false);
     }
@@ -50,7 +55,7 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } catch (err: any) {
-      setError(err.message || 'Registration failed');
+      setError(err.response?.data?.error || err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }

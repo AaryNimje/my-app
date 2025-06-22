@@ -1,4 +1,3 @@
-// backend/src/controllers/dashboardController.js
 const db = require('../config/database');
 
 class DashboardController {
@@ -65,10 +64,10 @@ class DashboardController {
         [userId]
       );
 
-      // Get token usage for today
+      // Get token usage for today - FIXED to use correct column names
       const tokenUsage = await db.query(
         `SELECT 
-           SUM(prompt_tokens + completion_tokens) as total_tokens,
+           SUM(COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0)) as total_tokens,
            COUNT(*) as request_count
          FROM token_usage
          WHERE user_id = $1 
@@ -83,8 +82,8 @@ class DashboardController {
           workflows: parseInt(workflowCount.rows[0].count),
           activeChats: parseInt(chatCount.rows[0].count),
           integrations: parseInt(integrationCount.rows[0].count),
-          tokensToday: parseInt(tokenUsage.rows[0].total_tokens || 0),
-          requestsToday: parseInt(tokenUsage.rows[0].request_count || 0),
+          tokensToday: parseInt(tokenUsage.rows[0]?.total_tokens || 0),
+          requestsToday: parseInt(tokenUsage.rows[0]?.request_count || 0),
           recentActivity: recentActivity.rows
         }
       });
