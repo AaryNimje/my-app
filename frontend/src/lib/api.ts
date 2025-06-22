@@ -52,6 +52,8 @@ class APIClient {
         success: boolean;
         token: string;
         user: { id: string; email: string; full_name: string; role: string };
+        status?: string;
+        error?: string;
       }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(credentials),
@@ -68,11 +70,13 @@ class APIClient {
       return response;
     },
 
-    register: async (data: { email: string; password: string; full_name: string }) => {
+    register: async (data: { email: string; password: string; full_name: string; requested_role?: string }) => {
       const response = await this.request<{
         success: boolean;
-        token: string;
-        user: { id: string; email: string; full_name: string; role: string };
+        message?: string;
+        requiresApproval?: boolean;
+        token?: string;
+        user?: { id: string; email: string; full_name: string; role: string };
       }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -96,6 +100,178 @@ class APIClient {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
+    },
+  };
+
+  // Admin endpoints
+  admin = {
+    getPendingRegistrations: async () => {
+      return this.request<{
+        success: boolean;
+        requests: Array<{
+          id: string;
+          email: string;
+          full_name: string;
+          requested_role: string;
+          requested_at: string;
+          user_id: string;
+        }>;
+      }>('/admin/pending-registrations');
+    },
+
+    approveRegistration: async (requestId: string, role?: string) => {
+      return this.request<{
+        success: boolean;
+        message: string;
+      }>(`/admin/approve-registration/${requestId}`, {
+        method: 'POST',
+        body: JSON.stringify({ role }),
+      });
+    },
+
+    rejectRegistration: async (requestId: string, reason: string) => {
+      return this.request<{
+        success: boolean;
+        message: string;
+      }>(`/admin/reject-registration/${requestId}`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+    },
+
+    getAllUsers: async () => {
+      return this.request<{
+        success: boolean;
+        users: Array<{
+          id: string;
+          email: string;
+          full_name: string;
+          role: string;
+          status: string;
+          created_at: string;
+          last_login: string;
+        }>;
+      }>('/admin/users');
+    },
+  };
+
+  // Q&A endpoints
+  qa = {
+    uploadDocument: async (formData: FormData) => {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${this.baseURL}/qa/upload`, {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+      
+      return response.json();
+    },
+
+    generateLink: async (data: {
+      documentId: string;
+      title: string;
+      description?: string;
+      settings?: any;
+    }) => {
+      return this.request<{
+        success: boolean;
+        studyLink: {
+          id: string;
+          link: string;
+          linkCode: string;
+        };
+      }>('/qa/generate-link', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    getDocuments: async () => {
+      return this.request<{
+        success: boolean;
+        documents: Array<{
+          id: string;
+          file_name: string;
+          file_size: number;
+          status: string;
+          created_at: string;
+          processed_at?: string;
+        }>;
+      }>('/qa/documents');
+    },
+
+    getStudyLinks: async () => {
+      return this.request<{
+        success: boolean;
+        studyLinks: Array<{
+          id: string;
+          link_code: string;
+          title: string;
+          description?: string;
+          is_active: boolean;
+          created_at: string;
+          file_name: string;
+          response_count: number;
+          fullLink: string;
+        }>;
+      }>('/qa/study-links');
+    },
+
+    getResponses: async (linkId: string) => {
+      return this.request<{
+        success: boolean;
+        responses: Array<{
+          id: string;
+          student_email: string;
+          student_name: string;
+          responses: any[];
+          score: number;
+          started_at: string;
+          completed_at?: string;
+          time_spent?: number;
+        }>;
+      }>(`/qa/responses/${linkId}`);
+    },
+
+    getStudyContent: async (linkCode: string) => {
+      return this.request<{
+        success: boolean;
+        study: {
+          id: string;
+          title: string;
+          description?: string;
+          settings: any;
+          questions: Array<{
+            question: string;
+            answer: string;
+          }>;
+        };
+      }>(`/qa/study/${linkCode}`);
+    },
+
+    submitResponses: async (linkCode: string, data: {
+      studentEmail: string;
+      studentName: string;
+      responses: any[];
+      timeSpent?: number;
+    }) => {
+      return this.request<{
+        success: boolean;
+        message: string;
+        score: number;
+        responseId: string;
+      }>(`/qa/study/${linkCode}/submit`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
     },
   };
 
@@ -387,6 +563,7 @@ class APIClient {
       return this.request<{ success: boolean; stats: any }>('/dashboard/stats');
     },
   };
+  
 }
 
 // Create and export API instance
@@ -394,6 +571,8 @@ const api = new APIClient(API_BASE_URL);
 
 // Export individual APIs for convenience
 export const authApi = api.auth;
+export const adminApi = api.admin;
+export const qaApi = api.qa;
 export const agentsApi = api.agents;
 export const workflowsApi = api.workflows;
 export const chatApi = api.chat;

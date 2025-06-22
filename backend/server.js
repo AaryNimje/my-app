@@ -21,6 +21,9 @@ const knowledgeRoutes = require('./src/routes/knowledge.routes');
 const llmRoutes = require('./src/routes/llm.routes');
 const logsRoutes = require('./src/routes/logs.routes');
 const dashboardRoutes = require('./src/routes/dashboard.routes');
+const adminRoutes = require('./src/routes/admin.routes');
+const qaRoutes = require('./src/routes/qa.routes');
+
 
 // Import middleware
 const errorHandler = require('./src/middleware/errorHandler');
@@ -65,6 +68,8 @@ app.use('/api/knowledge', knowledgeRoutes);
 app.use('/api/llm', llmRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/qa', qaRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
