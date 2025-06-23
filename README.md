@@ -1,156 +1,366 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Academic AI Platform
 
-## Getting Started
+A comprehensive AI-powered platform for educational institutions featuring workflow automation, multi-LLM chat interfaces, and academic tools.
 
-First, run the development server:
+## 🚀 Features
+
+- **Visual Workflow Builder** - Drag-and-drop interface for creating AI workflows
+- **Multi-LLM Chat Interface** - Support for OpenAI, Google Gemini, and Anthropic Claude
+- **AI Agents** - Create and manage autonomous AI agents for various academic tasks
+- **Google Workspace Integration** - Connect with Gmail, Sheets, Drive, and Calendar
+- **Role-Based Access Control** - Admin, teacher, and student roles with granular permissions
+- **Academic Tools** - Q&A generation, grading assistance, and content creation
+- **Real-time Collaboration** - WebSocket support for live updates
+
+## 📋 Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Node.js** (v18.0.0 or higher)
+- **npm** (v8.0.0 or higher)
+- **PostgreSQL** (or a Neon database account)
+- **Git**
+
+Optional:
+- **Docker** (for containerized deployment)
+
+## 🛠️ Installation
+
+### Step 1: Clone the Repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/academic-ai-platform.git
+cd academic-ai-platform
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Step 2: Environment Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+#### Backend Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a `.env` file in the `backend` directory:
 
-## Learn More
+```bash
+cd backend
+cp .env.example .env
+```
 
-To learn more about Next.js, take a look at the following resources:
+Edit the `.env` file with your configuration:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+# Database Configuration (Neon PostgreSQL)
+DATABASE_URL=postgresql://username:password@ep-xxx.region.aws.neon.tech/neondb?sslmode=require
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_EXPIRE=7d
 
-## Deploy on Vercel
+# LLM API Keys (At least one is required)
+GOOGLE_API_KEY=your-google-api-key
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Server Configuration
+PORT=5000
+NODE_ENV=development
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Frontend URL (for CORS)
+FRONTEND_URL=http://localhost:3000
 
+# Rate Limiting (Optional)
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
 
+# Email Configuration (Optional)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+```
+
+#### Frontend Environment Variables
+
+Create a `.env.local` file in the `frontend` directory:
+
+```bash
+cd ../frontend
+echo "NEXT_PUBLIC_API_URL=http://localhost:5000/api" > .env.local
+```
+
+### Step 3: Database Setup
+
+#### Option A: Using Neon (Recommended)
+
+1. Sign up for a free account at [Neon](https://neon.tech)
+2. Create a new project
+3. Copy your connection string from the Neon dashboard
+4. Update `DATABASE_URL` in your backend `.env` file
+
+#### Option B: Local PostgreSQL
+
+```bash
+# Create database
+createdb academic_ai
+
+# Update DATABASE_URL in .env
+DATABASE_URL=postgresql://username:password@localhost:5432/academic_ai
+```
+
+### Step 4: Install Dependencies
+
+```bash
+# Install backend dependencies
+cd backend
+npm install
+
+# Install frontend dependencies
+cd ../frontend
+npm install
+```
+
+### Step 5: Initialize Database
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Run database setup script
+node scripts/setup-neon-database.js
+
+# Create test users
+node scripts/create-test-user.js
+```
+
+### Step 6: Start the Application
+
+#### Development Mode
+
+Start both servers in separate terminals:
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+npm run dev
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+
+#### Production Mode
+
+```bash
+# Build frontend
+cd frontend
+npm run build
+
+# Start production servers
+cd ../backend
+npm start
+
+# In another terminal
+cd frontend
+npm start
+```
+
+## 👥 Default Login Credentials
+
+After running the setup scripts, you can login with:
+
+### Admin Account
+- **Email:** `admin@example.com`
+- **Password:** `password123`
+
+### Test User Account
+- **Email:** `test@example.com`
+- **Password:** `test123`
+
+## 🔧 Configuration Details
+
+### LLM Providers
+
+The platform supports multiple LLM providers. You need at least one API key configured:
+
+- **Google Gemini** - Set `GOOGLE_API_KEY`
+- **OpenAI** - Set `OPENAI_API_KEY`
+- **Anthropic Claude** - Set `ANTHROPIC_API_KEY`
+
+### Database Schema
+
+The platform uses the following main tables:
+- `users` - User accounts with roles
+- `workflows` - Visual workflow definitions
+- `ai_agents` - AI agent configurations
+- `chat_sessions` - Chat conversation history
+- `integrations` - External service connections
+- `llm_models` - Available LLM models
+
+## 📡 API Endpoints
+
+### Authentication
+- `POST /api/auth/login` - User login
+- `POST /api/auth/register` - User registration
+- `GET /api/auth/me` - Get current user
+
+### Workflows
+- `GET /api/workflows` - List workflows
+- `POST /api/workflows` - Create workflow
+- `PUT /api/workflows/:id` - Update workflow
+- `DELETE /api/workflows/:id` - Delete workflow
+- `POST /api/workflows/:id/execute` - Execute workflow
+
+### AI Agents
+- `GET /api/agents` - List agents
+- `POST /api/agents` - Create agent
+- `PUT /api/agents/:id` - Update agent
+- `DELETE /api/agents/:id` - Delete agent
+- `POST /api/agents/:id/execute` - Execute agent
+
+### Chat
+- `GET /api/chat/sessions` - List chat sessions
+- `POST /api/chat/sessions` - Create chat session
+- `POST /api/chat/sessions/:id/messages` - Send message
+
+### LLM
+- `GET /api/llm/models` - List available models
+- `POST /api/llm/complete` - Direct completion
+- `POST /api/llm/chat` - Chat completion
+
+## 🚀 Deployment
+
+### Using Docker
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+```
+
+### Manual Deployment
+
+#### Backend (Node.js)
+
+1. Set production environment variables
+2. Build and start:
+```bash
+cd backend
+NODE_ENV=production npm start
+```
+
+#### Frontend (Next.js)
+
+1. Build the application:
+```bash
+cd frontend
+npm run build
+```
+
+2. Start the production server:
+```bash
+npm start
+```
+
+### Deployment Platforms
+
+#### Vercel (Frontend)
+1. Connect your GitHub repository to Vercel
+2. Set environment variable: `NEXT_PUBLIC_API_URL`
+3. Deploy
+
+#### Railway/Render (Backend)
+1. Connect your GitHub repository
+2. Set all environment variables from `.env`
+3. Deploy with start command: `npm start`
+
+#### Neon (Database)
+Already configured if you followed the setup steps above.
+
+## 🧪 Testing
+
+### Run Backend Tests
+```bash
+cd backend
+npm test
+```
+
+### Check Setup
+```bash
+cd backend
+node scripts/check-setup.js
+```
+
+## 📚 Project Structure
+
+```
 academic-ai-platform/
-├── README.md                                    # Quick setup guide and project overview
-├── .env.example                                 # Environment variables template with all required keys
-├── docker-compose.yml                           # Simple 3-service setup: frontend, backend, database
-├── package.json                                 # Root workspace management
-│
-├── frontend/                                    # Next.js Frontend (Keep existing structure)
+├── frontend/               # Next.js frontend application
 │   ├── src/
-│   │   ├── app/
-│   │   │   ├── (auth)/
-│   │   │   │   ├── login/page.tsx               # Login with institution selection
-│   │   │   │   └── register/page.tsx            # Institution and user registration
-│   │   │   ├── dashboard/
-│   │   │   │   ├── page.tsx                     # Main dashboard with metrics
-│   │   │   │   ├── ai-playground/page.tsx       # Workflow builder (existing)
-│   │   │   │   ├── llm-playground/page.tsx      # Multi-chat interface (existing)
-│   │   │   │   ├── agents/page.tsx              # AI agents management
-│   │   │   │   ├── data/page.tsx                # Institution data browser (role-based)
-│   │   │   │   ├── logs/page.tsx                # System logs (existing)
-│   │   │   │   └── layout.tsx                   # Dashboard layout with role-based navigation
-│   │   │   └── layout.tsx                       # Root layout with auth
-│   │   ├── components/                          # Keep existing UI components
-│   │   ├── lib/                                 # Keep existing API clients and hooks
-│   │   └── types/                               # Keep existing TypeScript interfaces
-│   └── package.json                             # Frontend dependencies
+│   │   ├── app/           # App router pages
+│   │   ├── components/    # React components
+│   │   └── lib/           # Utilities and API client
+│   └── package.json
 │
-├── backend/                                     # Node.js Backend API
+├── backend/               # Node.js backend API
 │   ├── src/
-│   │   ├── models/
-│   │   │   ├── Institution.js                   # Institution schema with settings and limits
-│   │   │   ├── User.js                          # User schema with institution_id and role
-│   │   │   ├── Workflow.js                      # Workflow schema (existing)
-│   │   │   ├── Chat.js                          # Chat schema (existing)
-│   │   │   ├── Agent.js                         # AI agent configuration and status
-│   │   │   ├── AcademicData.js                  # Academic data schema (courses, students, etc.)
-│   │   │   └── Log.js                           # System logs (existing)
-│   │   ├── routes/
-│   │   │   ├── auth.js                          # Authentication with institution context
-│   │   │   ├── institutions.js                  # Institution management (admin only)
-│   │   │   ├── workflows.js                     # Workflow CRUD (existing, enhanced)
-│   │   │   ├── chats.js                         # Chat management (existing, enhanced)
-│   │   │   ├── agents.js                        # AI agent management and execution
-│   │   │   ├── academic-data.js                 # Role-based academic data access
-│   │   │   ├── llm.js                           # LLM providers (existing, add OLLAMA)
-│   │   │   └── logs.js                          # System logging (existing)
-│   │   ├── services/
-│   │   │   ├── WorkflowEngine.js                # Workflow execution (existing)
-│   │   │   ├── LLMService.js                    # Multi-provider LLM (add OLLAMA)
-│   │   │   ├── AgentManager.js                  # Python agent coordination
-│   │   │   ├── MCPService.js                    # Single MCP server management
-│   │   │   ├── InstitutionService.js            # Institution and role management
-│   │   │   ├── AcademicDataService.js           # Role-based data access
-│   │   │   └── NeonDBService.js                 # Neon database operations
-│   │   ├── middleware/
-│   │   │   ├── auth.js                          # JWT authentication
-│   │   │   ├── roleCheck.js                     # Role-based access control
-│   │   │   └── institutionContext.js            # Institution context middleware
-│   │   ├── utils/
-│   │   │   ├── permissions.js                   # Role permission utilities
-│   │   │   └── dataFilters.js                   # Role-based data filtering
-│   │   └── server.js                            # Main server (existing, enhanced)
-│   └── package.json                             # Backend dependencies
+│   │   ├── routes/        # API routes
+│   │   ├── services/      # Business logic
+│   │   ├── middleware/    # Express middleware
+│   │   └── config/        # Configuration files
+│   ├── scripts/           # Setup and utility scripts
+│   └── package.json
 │
-├── ai-agents/                                   # Python AI Agents (Essential only)
-│   ├── requirements.txt                         # Python dependencies
-│   ├── core/
-│   │   ├── base_agent.py                        # Base agent class
-│   │   ├── mcp_client.py                        # MCP client for tools
-│   │   ├── llm_interface.py                     # LLM abstraction (OLLAMA + APIs)
-│   │   └── data_access.py                       # Role-based data access
-│   ├── agents/
-│   │   ├── grading_agent.py                     # Automated grading agent
-│   │   ├── research_agent.py                    # Research assistance agent
-│   │   ├── quiz_generator_agent.py              # Quiz creation agent
-│   │   └── data_analysis_agent.py               # Academic data analysis agent
-│   ├── utils/
-│   │   ├── security.py                          # Basic security utilities
-│   │   └── role_checker.py                      # Role-based access validation
-│   └── start_agents.py                          # Agent startup script
-│
-├── mcp-server/                                  # Single Academic MCP Server
-│   ├── server.py                                # Main MCP server
-│   ├── tools/
-│   │   ├── document_tools.py                    # PDF/Word processing tools
-│   │   ├── academic_tools.py                    # Citation and academic formatting tools
-│   │   ├── data_tools.py                        # Spreadsheet and data analysis tools
-│   │   ├── institution_tools.py                 # Role-based institutional data tools
-│   │   └── google_workspace_tools.py            # Basic Google Workspace integration
-│   ├── config.json                              # MCP server configuration
-│   └── requirements.txt                         # MCP server dependencies
-│
-├── database/                                    # Neon DB Setup
-│   ├── schema.sql                               # Complete database schema
-│   ├── seed.sql                                 # Initial data and demo content
-│   ├── migrations/
-│   │   ├── 001_institutions.sql                 # Institution tables
-│   │   ├── 002_users_roles.sql                  # Users with roles and permissions
-│   │   ├── 003_academic_data.sql                # Academic data structure
-│   │   └── 004_workflows_agents.sql             # Workflows and agents tables
-│   └── setup.sql                                # Complete database setup script
-│
-├── config/                                      # Configuration Files
-│   ├── database.js                              # Neon DB configuration
-│   ├── llm-providers.json                       # LLM provider settings (including OLLAMA)
-│   ├── roles-permissions.json                   # Role-based access definitions
-│   └── institution-defaults.json                # Default institution settings
-│
-├── scripts/                                     # Setup Scripts
-│   ├── setup-neon-db.sh                         # Neon database initialization
-│   ├── install-ollama.sh                        # OLLAMA installation
-│   ├── start-dev.sh                             # Development environment startup
-│   └── deploy.sh                                # Simple deployment script
-│
-└── docs/                                        # Essential Documentation
-    ├── SETUP.md                                 # Quick setup guide
-    ├── API.md                                   # API documentation
-    ├── ROLES.md                                 # Role-based access guide
-    └── DEPLOYMENT.md                            # Deployment instructions
+└── database/              # Database schemas and migrations
+    └── schema.sql
+```
+
+## 🔒 Security
+
+- JWT-based authentication
+- Role-based access control (RBAC)
+- Rate limiting on API endpoints
+- Input validation and sanitization
+- SSL/TLS encryption for database connections
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Troubleshooting
+
+### Database Connection Issues
+- Ensure your `DATABASE_URL` is correct
+- Check if SSL is required (add `?sslmode=require`)
+- Verify Neon service is active
+
+### API Key Issues
+- Ensure at least one LLM API key is configured
+- Check API key validity and quotas
+- Verify environment variables are loaded
+
+### CORS Issues
+- Update `FRONTEND_URL` in backend `.env`
+- Ensure backend is running on expected port
+
+### Port Conflicts
+- Backend defaults to port 5000
+- Frontend defaults to port 3000
+- Change ports in respective configuration files if needed
+
+## 📞 Support
+
+For issues and questions:
+- Create an issue in the GitHub repository
+- Check existing issues for solutions
+- Review the logs in `backend/logs/` directory
+
+---
+
+Happy coding! 🎉
