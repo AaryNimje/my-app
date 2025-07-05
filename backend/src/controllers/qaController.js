@@ -1,69 +1,77 @@
+// backend/src/controllers/qaController.js - Updated with Groq Integration
+
 const db = require('../config/database');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs');
 const crypto = require('crypto');
-const pdfParse = require('pdf-parse');
-
-// Configure multer for PDF uploads
-const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '../../uploads/qa-documents');
-    await fs.mkdir(uploadPath, { recursive: true });
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${file.originalname}`;
-    cb(null, uniqueName);
-  }
-});
-
-const upload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF files are allowed'));
-    }
-  },
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  }
-});
+const axios = require('axios');
+const FormData = require('form-data');
 
 class QAController {
+  constructor() {
+    this.mainPyBaseUrl = process.env.MAIN_PY_URL || 'http://localhost:8000';
+    this.setupMulter();
+  }
+
+  setupMulter() {
+    const storage = multer.diskStorage({
+      destination: (req, file, cb) => {
+        const uploadDir = './uploads/pdfs';
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${file.originalname}`;
+        cb(null, uniqueName);
+      }
+    });
+
+    this.upload = multer({
+      storage: storage,
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+          cb(null, true);
+        } else {
+          cb(new Error('Only PDF files are allowed'), false);
+        }
+      },
+      limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
+      }
+    });
+  }
+
   async uploadDocument(req, res) {
     try {
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          error: 'No file uploaded'
-        });
-      }
-
-      const { path: filePath, originalname, size } = req.file;
       const teacherId = req.user.id;
+      const { originalname, filename, size, path: filePath } = req.file;
 
-      // Create document record
-      const result = await db.query(`
+      console.log('Starting document upload for teacher:', teacherId);
+      console.log('File details:', { originalname, filename, size });
+
+      // Save document record to database
+      const documentResult = await db.query(`
         INSERT INTO qa_documents (teacher_id, file_name, file_path, file_size, status)
-        VALUES ($1, $2, $3, $4, 'processing')
+        VALUES ($1, $2, $3, $4, 'uploaded')
         RETURNING id
       `, [teacherId, originalname, filePath, size]);
 
-      const documentId = result.rows[0].id;
+      const documentId = documentResult.rows[0].id;
 
-      // Process PDF asynchronously
-      this.processPDF(documentId, filePath);
+      // Process document with main.py in background
+      this.processDocumentAsync(filePath, teacherId, documentId);
 
       res.json({
         success: true,
         message: 'Document uploaded successfully. Processing will begin shortly.',
-        documentId
+        documentId: documentId
       });
+
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Document upload error:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to upload document'
@@ -71,84 +79,59 @@ class QAController {
     }
   }
 
-  async processPDF(documentId, filePath) {
+  async processDocumentAsync(filePath, teacherId, documentId) {
     try {
-      // Option 1: Use Python RAG system (recommended)
-      const { spawn } = require('child_process');
-      
-      const python = spawn('python', [
-        path.join(__dirname, '../../../mcp_rag_v1/reader.py'),
-        '--mode', 'process_qa',
-        '--input', filePath
-      ]);
+      console.log(`Starting async processing for document ${documentId} using Groq`);
 
-      let qaData = '';
-      let errorData = '';
-      
-      python.stdout.on('data', (data) => {
-        qaData += data.toString();
-      });
-
-      python.stderr.on('data', (data) => {
-        errorData += data.toString();
-      });
-
-      python.on('close', async (code) => {
-        if (code === 0) {
-          try {
-            const parsedData = JSON.parse(qaData);
-            
-            await db.query(`
-              UPDATE qa_documents 
-              SET status = 'processed',
-                  processed_data = $1,
-                  processed_at = CURRENT_TIMESTAMP
-              WHERE id = $2
-            `, [JSON.stringify(parsedData), documentId]);
-          } catch (parseError) {
-            throw new Error('Failed to parse RAG output: ' + parseError.message);
-          }
-        } else {
-          throw new Error('RAG processing failed: ' + errorData);
-        }
-      });
-
-      // Fallback to basic PDF parsing if Python RAG fails
-      python.on('error', async (error) => {
-        console.warn('Python RAG failed, falling back to basic parsing:', error);
-        await this.fallbackPDFProcessing(documentId, filePath);
-      });
-
-    } catch (error) {
-      console.error('PDF processing error:', error);
+      // Update status to processing
       await db.query(`
         UPDATE qa_documents 
-        SET status = 'failed',
-            error_message = $1
-        WHERE id = $2
-      `, [error.message, documentId]);
-    }
-  }
+        SET status = 'processing', 
+            processing_started_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+      `, [documentId]);
 
-  async fallbackPDFProcessing(documentId, filePath) {
-    try {
-      const dataBuffer = await fs.readFile(filePath);
-      const pdfData = await pdfParse(dataBuffer);
+      // Step 1: Upload PDF to main.py
+      const uploadResult = await this.uploadToMainPy(filePath, teacherId);
       
-      // Extract Q&A pairs from PDF text
-      const qaData = this.extractQAPairs(pdfData.text);
+      if (!uploadResult.success) {
+        throw new Error(`Main.py upload failed: ${uploadResult.error}`);
+      }
 
-      // Update document with processed data
+      console.log(`PDF uploaded to main.py. Vector store ID: ${uploadResult.vector_store_id}`);
+
+      // Step 2: Generate MCQ questions using Groq
+      const mcqResult = await this.generateMCQQuestionsWithGroq(
+        teacherId, 
+        uploadResult.vector_store_id,
+        10, // number of questions
+        'medium' // difficulty
+      );
+
+      if (!mcqResult.success) {
+        throw new Error(`MCQ generation failed: ${mcqResult.error}`);
+      }
+
+      console.log(`Generated ${mcqResult.questions.length} MCQ questions using ${mcqResult.provider}`);
+
+      // Step 3: Save MCQ questions to database
+      await this.saveMCQQuestions(documentId, mcqResult.questions);
+
+      // Step 4: Update document status
       await db.query(`
         UPDATE qa_documents 
         SET status = 'processed',
-            processed_data = $1,
+            vector_store_id = $1,
+            mcq_questions_count = $2,
             processed_at = CURRENT_TIMESTAMP
-        WHERE id = $2
-      `, [JSON.stringify(qaData), documentId]);
+        WHERE id = $3
+      `, [uploadResult.vector_store_id, mcqResult.questions.length, documentId]);
+
+      console.log(`Document ${documentId} processed successfully with ${mcqResult.provider}`);
 
     } catch (error) {
-      console.error('Fallback PDF processing error:', error);
+      console.error(`Processing error for document ${documentId}:`, error);
+      
       await db.query(`
         UPDATE qa_documents 
         SET status = 'failed',
@@ -158,41 +141,103 @@ class QAController {
     }
   }
 
-  extractQAPairs(text) {
-    const lines = text.split('\n').filter(line => line.trim());
-    const qaPairs = [];
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      // Look for Q: or Question: patterns
-      if (line.match(/^(Q:|Question:)/i)) {
-        const question = line.replace(/^(Q:|Question:)/i, '').trim();
-        let answer = '';
-        
-        // Look for A: or Answer: in next lines
-        for (let j = i + 1; j < lines.length; j++) {
-          const answerLine = lines[j].trim();
-          if (answerLine.match(/^(A:|Answer:)/i)) {
-            answer = answerLine.replace(/^(A:|Answer:)/i, '').trim();
-            i = j;
-            break;
-          } else if (answerLine.match(/^(Q:|Question:)/i)) {
-            // Next question found
-            break;
-          } else {
-            // Continue collecting answer text
-            answer += ' ' + answerLine;
-          }
+  async uploadToMainPy(filePath, userId) {
+    try {
+      const formData = new FormData();
+      formData.append('file', fs.createReadStream(filePath));
+      formData.append('user_id', userId.toString());
+
+      const response = await axios.post(
+        `${this.mainPyBaseUrl}/upload_pdf`,
+        formData,
+        {
+          headers: formData.getHeaders(),
+          timeout: 60000 // 60 seconds timeout
         }
-        
-        if (question && answer) {
-          qaPairs.push({ question, answer });
-        }
-      }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Main.py upload error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message
+      };
     }
-    
-    return qaPairs;
+  }
+
+  async generateMCQQuestionsWithGroq(userId, vectorStoreId, numQuestions = 10, difficulty = 'medium') {
+    try {
+      // Check if Groq API key exists
+      if (!process.env.GROQ_API_KEY) {
+        throw new Error('Groq API key not configured');
+      }
+
+      console.log(`Generating ${numQuestions} MCQ questions using Groq API`);
+
+      const formData = new FormData();
+      formData.append('user_id', userId.toString());
+      formData.append('vector_store_id', vectorStoreId);
+      formData.append('num_questions', numQuestions.toString());
+      formData.append('difficulty', difficulty);
+      formData.append('llm_provider', 'groq');
+      formData.append('api_key', process.env.GROQ_API_KEY);
+
+      const response = await axios.post(
+        `${this.mainPyBaseUrl}/generate_mcq`,
+        formData,
+        {
+          headers: formData.getHeaders(),
+          timeout: 90000 // 90 seconds timeout for Groq (still fast but allows for retries)
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error('Groq MCQ generation error:', error);
+      
+      // Specific error handling for Groq
+      if (error.response?.status === 401) {
+        return { success: false, error: 'Invalid Groq API key' };
+      }
+      if (error.response?.status === 429) {
+        return { success: false, error: 'Groq rate limit exceeded. Please try again in a moment.' };
+      }
+      if (error.response?.status === 503) {
+        return { success: false, error: 'Groq service temporarily unavailable. Please try again.' };
+      }
+      
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message
+      };
+    }
+  }
+
+  async saveMCQQuestions(documentId, questions) {
+    try {
+      for (const question of questions) {
+        await db.query(`
+          INSERT INTO mcq_questions 
+          (document_id, question, option_a, option_b, option_c, option_d, correct_answer, explanation, difficulty)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [
+          documentId,
+          question.question,
+          question.option_a,
+          question.option_b,
+          question.option_c,
+          question.option_d,
+          question.correct_answer,
+          question.explanation,
+          question.difficulty || 'medium'
+        ]);
+      }
+      console.log(`Saved ${questions.length} MCQ questions for document ${documentId}`);
+    } catch (error) {
+      console.error('Error saving MCQ questions:', error);
+      throw error;
+    }
   }
 
   async generateLink(req, res) {
@@ -200,9 +245,11 @@ class QAController {
       const { documentId, title, description, settings = {} } = req.body;
       const teacherId = req.user.id;
 
+      console.log('Generating study link for document:', documentId);
+
       // Verify document belongs to teacher and is processed
       const docResult = await db.query(`
-        SELECT id, status FROM qa_documents 
+        SELECT id, status, mcq_questions_count FROM qa_documents 
         WHERE id = $1 AND teacher_id = $2 AND status = 'processed'
       `, [documentId, teacherId]);
 
@@ -210,6 +257,14 @@ class QAController {
         return res.status(404).json({
           success: false,
           error: 'Document not found or not yet processed'
+        });
+      }
+
+      const questionCount = docResult.rows[0].mcq_questions_count;
+      if (questionCount === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'No MCQ questions available for this document'
         });
       }
 
@@ -226,12 +281,16 @@ class QAController {
       const studyLink = result.rows[0];
       const fullLink = `${process.env.FRONTEND_URL}/study/${linkCode}`;
 
+      // Log the link generation
+      await this.logQuizActivity(studyLink.id, null, 'link_generated', null, req.ip, req.get('User-Agent'));
+
       res.json({
         success: true,
         studyLink: {
           id: studyLink.id,
           link: fullLink,
-          linkCode: linkCode
+          linkCode: linkCode,
+          questionCount: questionCount
         }
       });
     } catch (error) {
@@ -253,7 +312,10 @@ class QAController {
           file_name,
           file_size,
           status,
+          mcq_questions_count,
+          error_message,
           created_at,
+          processing_started_at,
           processed_at
         FROM qa_documents
         WHERE teacher_id = $1
@@ -286,7 +348,10 @@ class QAController {
           sl.is_active,
           sl.created_at,
           qd.file_name,
-          (SELECT COUNT(*) FROM student_responses sr WHERE sr.study_link_id = sl.id) as response_count
+          qd.mcq_questions_count,
+          (SELECT COUNT(*) FROM student_responses sr WHERE sr.study_link_id = sl.id) as response_count,
+          (SELECT COUNT(DISTINCT student_email) FROM student_responses sr WHERE sr.study_link_id = sl.id) as unique_students,
+          (SELECT ROUND(AVG(score), 1) FROM student_responses sr WHERE sr.study_link_id = sl.id) as average_score
         FROM study_links sl
         JOIN qa_documents qd ON sl.document_id = qd.id
         WHERE sl.teacher_id = $1
@@ -305,6 +370,169 @@ class QAController {
       res.status(500).json({
         success: false,
         error: 'Failed to fetch study links'
+      });
+    }
+  }
+
+  async getStudyContent(req, res) {
+    try {
+      const { linkCode } = req.params;
+
+      console.log('Fetching study content for link:', linkCode);
+
+      const result = await db.query(`
+        SELECT 
+          sl.id,
+          sl.title,
+          sl.description,
+          sl.settings,
+          qd.file_name,
+          qd.mcq_questions_count
+        FROM study_links sl
+        JOIN qa_documents qd ON sl.document_id = qd.id
+        WHERE sl.link_code = $1 AND sl.is_active = true
+      `, [linkCode]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Study link not found or inactive'
+        });
+      }
+
+      const studyData = result.rows[0];
+
+      // Fetch MCQ questions
+      const questionsResult = await db.query(`
+        SELECT 
+          mq.id,
+          mq.question,
+          mq.option_a,
+          mq.option_b,
+          mq.option_c,
+          mq.option_d,
+          mq.correct_answer,
+          mq.explanation,
+          mq.difficulty
+        FROM mcq_questions mq
+        JOIN qa_documents qd ON mq.document_id = qd.id
+        JOIN study_links sl ON sl.document_id = qd.id
+        WHERE sl.link_code = $1
+        ORDER BY mq.created_at
+      `, [linkCode]);
+
+      res.json({
+        success: true,
+        study: {
+          id: studyData.id,
+          title: studyData.title,
+          description: studyData.description,
+          settings: studyData.settings,
+          fileName: studyData.file_name,
+          questions: questionsResult.rows,
+          generatedBy: 'Groq AI'
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching study content:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch study content'
+      });
+    }
+  }
+
+  async submitResponses(req, res) {
+    try {
+      const { linkCode } = req.params;
+      const { studentEmail, studentName, responses, timeSpent } = req.body;
+
+      console.log('Submitting responses for link:', linkCode);
+      console.log('Student:', studentEmail, 'Responses:', responses.length);
+
+      // Get study link
+      const linkResult = await db.query(
+        'SELECT id FROM study_links WHERE link_code = $1 AND is_active = true',
+        [linkCode]
+      );
+
+      if (linkResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Study link not found or inactive'
+        });
+      }
+
+      const studyLinkId = linkResult.rows[0].id;
+
+      // Calculate score
+      const score = this.calculateScore(responses);
+
+      // Save main response record
+      const responseResult = await db.query(`
+        INSERT INTO student_responses 
+        (study_link_id, student_email, student_name, responses, score, completed_at, time_spent, ip_address)
+        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7)
+        RETURNING id
+      `, [
+        studyLinkId,
+        studentEmail,
+        studentName,
+        JSON.stringify(responses),
+        score,
+        timeSpent || 0,
+        req.ip
+      ]);
+
+      const responseId = responseResult.rows[0].id;
+
+      // Log individual question responses
+      for (const response of responses) {
+        await this.logQuizActivity(
+          studyLinkId,
+          studentEmail,
+          'question_answered',
+          {
+            questionId: response.questionId,
+            selectedAnswer: response.selectedAnswer,
+            isCorrect: response.isCorrect,
+            responseId: responseId
+          },
+          req.ip,
+          req.get('User-Agent')
+        );
+      }
+
+      // Log quiz completion
+      await this.logQuizActivity(
+        studyLinkId,
+        studentEmail,
+        'quiz_completed',
+        {
+          responseId: responseId,
+          score: score,
+          timeSpent: timeSpent,
+          totalQuestions: responses.length,
+          provider: 'groq'
+        },
+        req.ip,
+        req.get('User-Agent')
+      );
+
+      res.json({
+        success: true,
+        message: 'Responses submitted successfully',
+        score: score,
+        responseId: responseId,
+        totalQuestions: responses.length,
+        correctAnswers: responses.filter(r => r.isCorrect).length,
+        generatedBy: 'Groq AI'
+      });
+    } catch (error) {
+      console.error('Error submitting responses:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to submit responses'
       });
     }
   }
@@ -336,15 +564,17 @@ class QAController {
           score,
           started_at,
           completed_at,
-          time_spent
+          time_spent,
+          ip_address
         FROM student_responses
         WHERE study_link_id = $1
-        ORDER BY started_at DESC
+        ORDER BY completed_at DESC
       `, [linkId]);
 
       res.json({
         success: true,
-        responses: result.rows
+        responses: result.rows,
+        generatedBy: 'Groq AI'
       });
     } catch (error) {
       console.error('Error fetching responses:', error);
@@ -355,116 +585,139 @@ class QAController {
     }
   }
 
-  async getStudyContent(req, res) {
+  async getQuizHistory(req, res) {
     try {
-      const { linkCode } = req.params;
+      const { linkId } = req.params;
+      const teacherId = req.user.id;
+
+      // Verify link belongs to teacher
+      const linkCheck = await db.query(
+        'SELECT id FROM study_links WHERE id = $1 AND teacher_id = $2',
+        [linkId, teacherId]
+      );
+
+      if (linkCheck.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied'
+        });
+      }
 
       const result = await db.query(`
         SELECT 
-          sl.id,
-          sl.title,
-          sl.description,
-          sl.settings,
-          qd.processed_data
-        FROM study_links sl
-        JOIN qa_documents qd ON sl.document_id = qd.id
-        WHERE sl.link_code = $1 AND sl.is_active = true
-      `, [linkCode]);
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Study link not found or inactive'
-        });
-      }
-
-      const studyData = result.rows[0];
+          id,
+          student_email,
+          action,
+          question_id,
+          selected_answer,
+          is_correct,
+          timestamp,
+          ip_address
+        FROM quiz_logs
+        WHERE study_link_id = $1
+        ORDER BY timestamp DESC
+        LIMIT 500
+      `, [linkId]);
 
       res.json({
         success: true,
-        study: {
-          id: studyData.id,
-          title: studyData.title,
-          description: studyData.description,
-          settings: studyData.settings,
-          questions: studyData.processed_data
-        }
+        logs: result.rows,
+        generatedBy: 'Groq AI'
       });
     } catch (error) {
-      console.error('Error fetching study content:', error);
+      console.error('Error fetching quiz history:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch study content'
+        error: 'Failed to fetch quiz history'
       });
     }
   }
 
-  async submitResponses(req, res) {
+  async getQuizAnalytics(req, res) {
     try {
-      const { linkCode } = req.params;
-      const { studentEmail, studentName, responses, timeSpent } = req.body;
+      const { linkId } = req.params;
+      const teacherId = req.user.id;
 
-      // Get study link
-      const linkResult = await db.query(
-        'SELECT id FROM study_links WHERE link_code = $1 AND is_active = true',
-        [linkCode]
+      // Verify link belongs to teacher
+      const linkCheck = await db.query(
+        'SELECT id FROM study_links WHERE id = $1 AND teacher_id = $2',
+        [linkId, teacherId]
       );
 
-      if (linkResult.rows.length === 0) {
-        return res.status(404).json({
+      if (linkCheck.rows.length === 0) {
+        return res.status(403).json({
           success: false,
-          error: 'Study link not found or inactive'
+          error: 'Access denied'
         });
       }
 
-      const studyLinkId = linkResult.rows[0].id;
+      // Get overall analytics
+      const analyticsResult = await db.query(`
+        SELECT 
+          COUNT(DISTINCT student_email) as unique_students,
+          COUNT(*) as total_attempts,
+          ROUND(AVG(score), 2) as average_score,
+          MIN(score) as min_score,
+          MAX(score) as max_score,
+          COUNT(*) FILTER (WHERE score >= 80) as high_scores,
+          COUNT(*) FILTER (WHERE score >= 60 AND score < 80) as medium_scores,
+          COUNT(*) FILTER (WHERE score < 60) as low_scores,
+          ROUND(AVG(time_spent), 0) as average_time
+        FROM student_responses
+        WHERE study_link_id = $1
+      `, [linkId]);
 
-      // Calculate score
-      const score = this.calculateScore(responses);
+      // Get question-level statistics using the database function
+      const questionStatsResult = await db.query(
+        'SELECT * FROM get_question_statistics($1)',
+        [linkId]
+      );
 
-      // Save responses
-      const result = await db.query(`
-        INSERT INTO student_responses 
-        (study_link_id, student_email, student_name, responses, score, completed_at, time_spent, ip_address)
-        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7)
-        RETURNING id
+      res.json({
+        success: true,
+        analytics: analyticsResult.rows[0],
+        questionStats: questionStatsResult.rows,
+        generatedBy: 'Groq AI',
+        provider: 'groq'
+      });
+    } catch (error) {
+      console.error('Error fetching quiz analytics:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch quiz analytics'
+      });
+    }
+  }
+
+  // Helper method to calculate score
+  calculateScore(responses) {
+    if (!Array.isArray(responses) || responses.length === 0) return 0;
+    
+    const correctCount = responses.filter(response => response.isCorrect).length;
+    return Math.round((correctCount / responses.length) * 100 * 10) / 10; // Round to 1 decimal
+  }
+
+  // Helper method to log quiz activities
+  async logQuizActivity(studyLinkId, studentEmail, action, metadata = null, ipAddress = null, userAgent = null) {
+    try {
+      await db.query(`
+        INSERT INTO quiz_logs 
+        (study_link_id, student_email, action, question_id, selected_answer, is_correct, ip_address, user_agent)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       `, [
         studyLinkId,
         studentEmail,
-        studentName,
-        JSON.stringify(responses),
-        score,
-        timeSpent || 0,
-        req.ip
+        action,
+        metadata?.questionId || null,
+        metadata?.selectedAnswer || null,
+        metadata?.isCorrect || null,
+        ipAddress,
+        userAgent
       ]);
-
-      res.json({
-        success: true,
-        message: 'Responses submitted successfully',
-        score: score,
-        responseId: result.rows[0].id
-      });
     } catch (error) {
-      console.error('Error submitting responses:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to submit responses'
-      });
+      console.error('Error logging quiz activity:', error);
+      // Don't throw error - logging shouldn't break the main flow
     }
-  }
-
-  // Calculate score (basic implementation)
-  calculateScore(responses) {
-    if (!Array.isArray(responses)) return 0;
-    
-    let correctCount = 0;
-    responses.forEach(response => {
-      if (response.isCorrect) {
-        correctCount++;
-      }
-    });
-    
-    return (correctCount / responses.length) * 100;
   }
 
   // Toggle study link active status
@@ -473,7 +726,6 @@ class QAController {
       const { linkId } = req.params;
       const teacherId = req.user.id;
 
-      // Verify link belongs to teacher
       const linkCheck = await db.query(
         'SELECT id, is_active FROM study_links WHERE id = $1 AND teacher_id = $2',
         [linkId, teacherId]
@@ -503,55 +755,110 @@ class QAController {
       console.error('Error toggling link status:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to toggle link status'
+        error: 'Failed to update link status'
       });
     }
   }
 
-  // Delete document
-  async deleteDocument(req, res) {
+  // Test Groq connection
+  async testGroqConnection(req, res) {
+    try {
+      if (!process.env.GROQ_API_KEY) {
+        return res.status(400).json({
+          success: false,
+          error: 'Groq API key not configured'
+        });
+      }
+
+      // Test health check with main.py
+      const healthResponse = await axios.get(`${this.mainPyBaseUrl}/health`, {
+        timeout: 5000
+      });
+
+      // Test models endpoint
+      const modelsResponse = await axios.get(`${this.mainPyBaseUrl}/models`, {
+        timeout: 5000
+      });
+
+      res.json({
+        success: true,
+        message: 'Groq connection successful',
+        mainPyHealth: healthResponse.data,
+        availableModels: modelsResponse.data,
+        groqConfigured: true
+      });
+    } catch (error) {
+      console.error('Groq connection test failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to connect to Groq service',
+        details: error.response?.data || error.message
+      });
+    }
+  }
+
+  // Regenerate questions for a document
+  async regenerateQuestions(req, res) {
     try {
       const { documentId } = req.params;
+      const { numQuestions = 10, difficulty = 'medium' } = req.body;
       const teacherId = req.user.id;
 
-      // Get document info
-      const docResult = await db.query(
-        'SELECT file_path FROM qa_documents WHERE id = $1 AND teacher_id = $2',
-        [documentId, teacherId]
-      );
+      // Verify document belongs to teacher
+      const docResult = await db.query(`
+        SELECT id, vector_store_id FROM qa_documents 
+        WHERE id = $1 AND teacher_id = $2 AND status = 'processed'
+      `, [documentId, teacherId]);
 
       if (docResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
-          error: 'Document not found'
+          error: 'Document not found or not processed'
         });
       }
 
-      const filePath = docResult.rows[0].file_path;
+      const vectorStoreId = docResult.rows[0].vector_store_id;
 
-      // Delete from database
-      await db.query('DELETE FROM qa_documents WHERE id = $1', [documentId]);
+      // Delete existing questions
+      await db.query('DELETE FROM mcq_questions WHERE document_id = $1', [documentId]);
 
-      // Delete file from filesystem
-      try {
-        await fs.unlink(filePath);
-      } catch (fileError) {
-        console.warn('Failed to delete file:', fileError);
+      // Generate new questions
+      const mcqResult = await this.generateMCQQuestionsWithGroq(
+        teacherId,
+        vectorStoreId,
+        numQuestions,
+        difficulty
+      );
+
+      if (!mcqResult.success) {
+        throw new Error(`MCQ generation failed: ${mcqResult.error}`);
       }
+
+      // Save new questions
+      await this.saveMCQQuestions(documentId, mcqResult.questions);
+
+      // Update document
+      await db.query(`
+        UPDATE qa_documents 
+        SET mcq_questions_count = $1,
+            processed_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `, [mcqResult.questions.length, documentId]);
 
       res.json({
         success: true,
-        message: 'Document deleted successfully'
+        message: `Successfully regenerated ${mcqResult.questions.length} questions`,
+        questionCount: mcqResult.questions.length,
+        provider: 'groq'
       });
     } catch (error) {
-      console.error('Error deleting document:', error);
+      console.error('Error regenerating questions:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to delete document'
+        error: 'Failed to regenerate questions'
       });
     }
   }
 }
 
 module.exports = new QAController();
-module.exports.upload = upload;

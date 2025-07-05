@@ -9,7 +9,7 @@ router.use(protect);
 router.post('/', workflowController.createWorkflow);
 router.get('/', workflowController.getWorkflows);
 router.get('/:workflowId', workflowController.getWorkflow);
-router.put('/:workflowId', workflowController.saveWorkflow);
+router.put('/:workflowId', workflowController.updateWorkflow); // Fixed: was saveWorkflow, now updateWorkflow
 router.delete('/:workflowId', workflowController.deleteWorkflow);
 
 // Workflow execution
